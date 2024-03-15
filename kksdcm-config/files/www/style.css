@@ -1,0 +1,526 @@
+:root {
+  --bgcolor: #606060;
+  --bordercolor: #E0E0E0;
+  --textcolor: #FFFFFF;
+  --textcolorDark: #000000; 
+  --progresscolor: #00FF00;
+  --buttoncolorON: #00FF00;
+  --buttoncolorOFF: #606060;
+  --buttoncolorERROR: #FF0000;
+  --buttoncolorWARNING: #ffff00;
+  --borderradius: 0px;
+}
+
+body {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 32, 96, 1) 100%);
+  height: 100%;
+  margin: 0;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  font-family:verdana;
+}
+
+#idHeaderLogo {
+  height: 47px;
+  background-color: var(--bordercolor);
+  float: right;
+}
+#idHeaderLogoGradient {
+  width: 10px;
+  background-image: linear-gradient(to right, var(--bgcolor), var(--bordercolor));
+  float: right;
+}
+
+.clearing { clear: both; }
+
+.main_container {
+  padding-top: 0px;
+}
+
+/* The navigation menu */
+.navbar {
+  overflow: hidden;
+  background-color: var(--bgcolor);
+}
+
+/* Navigation links */
+.navbar a {
+  float: left;
+  font-size: 16px;
+  color: var(--textcolor);
+  text-align: center;
+  padding: 14px 16px;
+  text-decoration: none;
+}
+
+/* The subnavigation menu */
+.subnav {
+  float: left;
+  overflow: hidden;
+}
+
+/* Subnav button */
+.subnav .subnavbtn {
+  font-size: 16px;
+  border: none;
+  outline: none;
+  color: var(--textcolor);
+  padding: 14px 16px;
+  background-color: inherit;
+  font-family: inherit;
+  margin: 0;
+}
+
+/* Add a red background color to navigation links on hover */
+.navbar a:hover, .subnav:hover .subnavbtn {
+  background-color: var(--bordercolor);
+  color: black;
+}
+
+/* Style the subnav content - positioned absolute */
+.subnav-content {
+  display: none;
+  position: absolute;
+  left: 0;
+  background-color: var(--bordercolor);
+  width: 100%;
+  z-index: 1;
+}
+
+/* Style the subnav links */
+.subnav-content a {
+  float: left;
+  color: black;
+  text-decoration: none;
+}
+
+/* Add a grey background color on hover */
+.subnav-content a:hover {
+  background-color: var(--bgcolor);
+  color: var(--textcolor);
+}
+
+/* When you move the mouse over the subnav container, open the subnav content */
+.subnav:hover .subnav-content {
+  display: block;
+}
+
+
+.overlay {
+  position: fixed;
+  z-index: 9999;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  transition: opacity 500ms;
+}
+
+.overlay * {
+  box-sizing: border-box;
+}
+
+.popup {
+  margin: 70px auto;
+  padding: 20px;
+  background: var(--bgcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  width: 30%;
+  position: relative;
+  transition: all 5s ease-in-out;
+}
+.popup .content {
+  max-height: 30%;
+  overflow: auto;
+  color: var(--textcolor);
+}
+.popup input {
+  width: 97%;
+  height: 2.5em;
+  margin: 10px 2px;
+  border: var(--bordercolor) 1px solid;
+  padding: 0px;
+  color: black;
+}
+.popup button, .popup select {
+  width: 98%;
+  height: 2.5em;
+  margin: 10px 2px;
+  border: var(--bordercolor) 1px solid;
+  padding: 5px;
+  color: black;
+}
+.popup button {
+  width: 97%;
+  margin: 10px 2px;
+  background-color: var(--bgcolor);
+  color: var(--textcolor);
+}
+.popup button:hover {
+  background-color: var(--bordercolor);
+  color: var(--textcolorDark);
+}
+
+
+.monOverview {
+  width: 1100px;
+  margin-left: 10px;
+  margin-top: 20px;
+  color: var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+  padding: 5px;
+  float: left;
+}
+
+.monTable {
+  width: 100%;
+  border-spacing: 0;
+}
+
+.monTable td {
+  text-align: center;
+  border: var(--bordercolor) 1px solid;
+}
+
+.contentHeader {
+  margin-bottom: 0px;
+  margin-top: -1em;
+}
+.contentHeader span{
+  background-color: var(--bgcolor);
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.statusOFF {
+  background-color: var(--bgcolor);
+}
+
+.statusON {
+  background-color: var(--buttoncolorON);
+  color: var(--textcolorDark);
+}
+
+.statusERROR {
+  background-color: var(--buttoncolorERROR);
+}
+
+.statusWARNING {
+  background-color: var(--buttoncolorWARNING);
+}
+
+.LMparameter {
+  width: 500px;
+  margin-left: 10px;
+  margin-top: 20px;
+  color:var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+  padding: 5px;
+}
+
+.LMparam {
+  width: 60px;
+  float: right;
+  text-align: right;
+}
+.LMparamCheckbox {
+  float: right;
+}
+
+.LMparamSetting {
+  width: 60px;
+  text-align: right;
+  margin-left: 80px;
+}
+.LMparamSettingADVANCED {
+  width: 60px;
+}
+
+#idTableNumberSettings {
+  width: 100%;
+}
+#idTableNumberSettings td:nth-child(2) {
+  text-align: right;
+}
+
+.tableSpacer {
+  width: 20px;
+}
+#paramActiveSetting {
+  width: 68px;
+}
+
+.paramTable {
+  width: 100%;
+}
+
+.paramTable td:nth-child(2) {
+  text-align: right;
+}
+
+.engParam {
+  background-color: var(--bgcolor);
+}
+.engParam:hover {
+  background-color: var(--bordercolor);
+  color: var(--textcolorDark);
+}
+
+.monTableHeader {
+  font-weight: bold;
+}
+
+#idMonTable td:nth-child(7) {
+  width:33%;
+}
+
+
+.screenShot {
+  width: 100px;
+  margin-left: 20px;
+  margin-top: 20px;
+  color: var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+  padding: 5px;
+  float: left;
+}
+
+.screenShot:hover {
+  background-color: var(--bordercolor);
+  color: var(--textcolorDark);
+}
+
+.extMonitor {
+  width: 1100px;
+  margin-left: 10px;
+  color: var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor)1px solid;
+  background-color: var(--bgcolor);
+  padding: 5px;
+  /*float: left;*/
+}
+
+#idExtMonTable td{
+  vertical-align: top;
+}
+
+.extMonitorContent {
+  margin-left: 0px;
+  margin-top: 10px;
+  color: var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+  padding: 5px;
+  float: left;
+  text-align: left;
+}
+
+.extMonitorContent label{
+  display:block; 
+  text-align: left;
+  width:100%;
+}
+.extMonitorContent td{
+  text-align: right;
+}
+
+#extMonFreqTable td:nth-child(1) {
+  text-align: left;
+}
+#extMonFreqTable td:nth-child(2) {
+  text-align: center;
+}
+
+#extMonStatusConfigTable td:nth-child(1) {
+  text-align: left;
+}
+
+#extMonGenInfoTable td:nth-child(1) {
+  text-align: left;
+}
+
+#extMonElecDataTable td:nth-child(1) {
+  text-align: left;
+}
+
+#extMonTemperatureTable td:nth-child(1) {
+  text-align: left;
+}
+
+.counterOverview {
+  width: 500px;
+  margin-left: 10px;
+  margin-top: 20px;
+  color: var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+  padding: 5px;
+  float: left;
+}
+
+#counterTable td:nth-child(2) {
+  text-align: right;
+}
+#counterTable td:nth-child(3) {
+  text-align: right;
+}
+
+.communicationOverview {
+  width: 600px;
+  margin-left: 20px;
+  margin-top: 20px;
+  color: var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+  padding: 5px;
+  float: left;
+}
+
+.comNetworkSettings {
+  text-align: right;
+  width: 150px;
+  float: right;
+}
+
+.swUpdateOverview {
+  width: 600px;
+  margin-left: 20px;
+  margin-top: 20px;
+  color: var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+  padding: 5px;
+  float: left;
+}
+
+.infoOverview {
+  width: 90%;
+  margin-left: 20px;
+  margin-top: 20px;
+  color: var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+  padding: 5px;
+  float: left;
+  font-size: 12px;
+}
+.infoOverview a {
+  color: var(--textcolor);
+}
+
+
+.btnCounterReset {
+  color: var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+  padding-left: 5px;
+  padding-right: 5px;
+  font-weight: bold;
+}
+
+.btnCounterReset:hover {
+  background-color: var(--bordercolor);
+  color: var(--textcolorDark);
+}
+
+.btON {
+  width: 70px;
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  padding: 4x;
+  background-color: var(--buttoncolorON);
+  color: var(--textcolorDark);
+}
+
+.btON:disabled {
+  background-color: var(--buttoncolorOFF);
+  color: var(--textcolorDark);
+}
+
+.btOFF {
+  width: 70px;
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  padding: 4x;
+  background-color: var(--buttoncolorOFF);
+  color: var(--textcolor);
+}
+
+.btOFF:disabled {
+  background-color: var(--buttoncolorOFF);
+  color: var(--textcolorDark);
+}
+
+.paramSelect {
+  width: 70px;
+  height: 20px;
+  text-align: right;
+}
+
+.progbarContainer {
+  background-color: var(--bgcolor);
+  width: 100%;
+  height: 20px;
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+}
+
+.progbarValue {
+  background-color: var(--progresscolor);
+  height: 100%;
+}
+
+.slidecontainer {
+  width: 100%; /* Width of the outside container */
+}
+
+/* The slider itself */
+.slider {
+  -webkit-appearance: none;  /* Override default CSS styles */
+  appearance: none;
+  width: 98%; /* Full-width */
+  height: 20px; /* Specified height */
+  background: var(--bgcolor); /* Grey background */
+  outline: none; /* Remove outline */
+  opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */
+  -webkit-transition: .2s; /* 0.2 seconds transition on hover */
+  transition: opacity .2s;
+  border: var(--bordercolor) 1px solid;
+}
+
+/* Mouse-over effects */
+.slider:hover {
+  opacity: 1; /* Fully shown on mouse-over */
+}
+
+/* The slider handle (use -webkit- (Chrome, Opera, Safari, Edge) and -moz- (Firefox) to override default look) */
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none; /* Override default look */
+  appearance: none;
+  width: 15px; /* Set a specific slider handle width */
+  height: 25px; /* Slider handle height */
+  background:  var(--bordercolor); /* Green background */
+  cursor: pointer; /* Cursor on hover */
+}
+
+.slider::-moz-range-thumb {
+  width: 15px; /* Set a specific slider handle width */
+  height: 25px; /* Slider handle height */
+  background:  var(--bordercolor); /* Green background */
+  cursor: pointer; /* Cursor on hover */
+}

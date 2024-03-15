@@ -2,9 +2,11 @@
 
 
 // ubus state
-var ubus_session = false;
+var ubus_session = localStorage.getItem('ubus_session') || false;
 var pendingCalls = false;
 var rpcid = 1;
+
+
 
 function apiCall(jsonquery, timeout, loginWhenNeeded, endpoint)
 {
@@ -33,6 +35,32 @@ function apiCall(jsonquery, timeout, loginWhenNeeded, endpoint)
   return promise;
 }
 
+function apiCalKKS(jsonquery, timeout, loginWhenNeeded, endpoint)
+{
+  if (loginWhenNeeded==undefined) loginWhenNeeded=true;
+  if (endpoint!=undefined) {
+    // convert to subsystem call
+    jsonquery = { [endpoint]: jsonquery };
+  }
+  var dfd = $.Deferred();
+  var uc = ubusCall("file", "read", jsonquery, timeout, loginWhenNeeded).done(function(response) {
+    if (response.result!==undefined) {
+      dfd.resolve(response.result);
+    }
+    else if (response.error!==undefined) {
+      dfd.reject(response.errordomain, response.error, response.errormessage, response.userfacingmessage);
+    }
+    else {
+      dfd.reject("local", -1, "api call got no json response");
+    }
+  }).fail(function(domain, code, message) {
+    dfd.reject(domain, code, message);
+    console.log('apiCall: [' + domain + '] Error ' + code.toString() + ': ' + message);
+  });
+  var promise = dfd.promise();
+  promise.abort = function() { uc.abort(); }
+  return promise;
+}
 
 function logOut()
 {
@@ -59,6 +87,39 @@ function extractSession(locationhash)
   }
   // return remaining locationhash
   return locationhash;
+}
+
+function askForLoginKKS(loginMsg)
+{
+  if (loginMsg==undefined) loginMsg='';
+  var dfd = $.Deferred();
+  if (pendingCalls===false) pendingCalls = []; // existence of array means login in progress
+
+  // attempt ubus login
+  var usr = "kksdcm";
+  var pwd = "kksdcm";
+  ubusRawCall(
+    "00000000000000000000000000000000", "session", "login",
+    { "username": usr, "password": pwd }
+  ).done(function(response) {
+    // successful login
+    ubus_session = response.ubus_rpc_session;
+    localStorage.setItem('ubus_session', ubus_session);
+    dfd.resolve();
+  }).fail(function(domain, code, message) {
+    // some kind of login failure
+    if (domain=="ubus" && code==6) {
+      // 6 == UBUS_STATUS_PERMISSION_DENIED -> actually wrong password - repeat asking
+      askForLogin("Invalid login user and/or password").done(function(response) {
+        dfd.resolve(response);
+      }).fail(function(domain, code, message) {
+        dfd.reject(domain, code, message);
+      });
+      return;
+    }
+    dfd.reject(domain, code, message);
+  });
+  return dfd.promise();
 }
 
 
@@ -119,7 +180,7 @@ function ubusCall(path, method, params, timeout, loginWhenNeeded)
       if (!loggingIn) {
         // login not yet in progress - initiate it, but with a slight delay to stabilize UI first
         setTimeout(function() {
-          askForLogin().done(function() {
+          askForLoginKKS().done(function() {
             // process pending calls
             if (path.length<=0) dfd.resolve(); // pseudo-call just for logging in
             while(pendingCalls.length>0) {

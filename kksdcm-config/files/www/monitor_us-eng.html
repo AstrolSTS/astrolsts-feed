@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<link rel="stylesheet" type="text/css" href="/style.css">
+	<link rel="stylesheet" href="/css/all.min.css">
+	<script type="text/javascript" src="/script.js"></script>
+	<script type="text/javascript" src="/html2pdf.bundle.min.js"></script>
+	<script src="/js/jquery.min.js"></script>
+	<script src="/js/utils.js"></script>
+	<script src="/js/p44api.js"></script>
+	<script type="text/javascript">
+		function onLoad() {
+			update_modbus_register();
+			writeMonitorTable("US-ENG","update");
+			writeMonitorExtended("US-ENG","update");
+			writeLMparameter("US-ENG","update");
+			writeCounterOverview("US-ENG","update");
+			end_of_update();
+		  	setTimeout('onLoad();', 1000);
+		}
+    </script>
+</head>
+<body id="monitorBody" onload="onLoad()">
+<script type="text/javascript">
+	writeNavMenu ("US-ENG");
+</script>
+<div class="main_container">
+	<table>
+		<tr>
+			<td VALIGN=TOP>
+				<div class="monOverview">
+					<script type="text/javascript">
+						writeMonitorTable("US-ENG","init");
+					</script>
+				</div>
+				<div class="clearing"></div>
+				<br>
+				<script type="text/javascript">
+					writeMonitorExtended("US-ENG", "init");
+				</script>
+			</td>
+			<td VALIGN=TOP>
+				<script type="text/javascript">
+					writeLMparameter("US-ENG","init");
+				</script>
+				<script type="text/javascript">
+					writeCounterOverview("US-ENG","init");
+				</script>
+			</td>
+		</tr>
+	</table>
+</div>
+</body>
+</html>
