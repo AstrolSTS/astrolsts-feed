@@ -81,6 +81,8 @@ Note: At the time of writing this, I'm using the official release tagged `v22.03
 cp feeds.conf.default feeds.conf
 # comment out unused feeds (luci in particular is large)
 sed -i -E -e "/src-git (luci|freifunk|telephony)/s/^/#/" feeds.conf
+# AstrolSTS feed
+echo "src-git astrolsts https://github.com/AstrolSTS/astrolsts-feed.git;main" >>feeds.conf
 # plan44.ch feed
 echo "src-git plan44 https://github.com/plan44/plan44-feed.git;main" >>feeds.conf
 # onion.io feed
@@ -89,12 +91,12 @@ echo "src-git onion https://github.com/OnionIoT/OpenWRT-Packages.git" >>feeds.co
 ./scripts/feeds update -a
 ```
 
-#### recommended: Unshallow plan44 feed to be able to work with tools like Fork or GitX in it
+#### recommended: Unshallow astrolsts feed to be able to work with tools like Fork or GitX in it
 
 OpenWrt clones only a shallow (no history) copy of the feed repository. This saves space, but limits git operations (and crashes tools like GitX). The following steps convert the feed into a regular repository:
 
 ```bash
-pushd feeds/plan44
+pushd feeds/astrolsts
 git fetch --unshallow
 popd
 ```
@@ -104,7 +106,7 @@ popd
 ### Direct p44b to the information that will control everything
 
 ```bash
-TARGET_CFG_PACKAGE="plan44/kksdcm-config"
+TARGET_CFG_PACKAGE="astrolsts/kksdcm-config"
 ../p44build/p44b init feeds/${TARGET_CFG_PACKAGE}/p44build
 ```
 
@@ -263,7 +265,7 @@ On the build machine:
 ./p44b save
 ```
 
-This records the precise details of this build into `feeds/plan44/kksdcm-config/p44build`, in particular the OpenWrt tree's SHA and `.config` as well as the SHAs of the feeds used.
+This records the precise details of this build into `feeds/astrolsts/kksdcm-config/p44build`, in particular the OpenWrt tree's SHA and `.config` as well as the SHAs of the feeds used.
 
 The idea is that **this can be committed back into the kksdcm-config package**, as kind of a "head" record for this very kksdcm firmware build, and allows to go back to this point later, even if the OpenWrt tree was used to build other firmware images in between.
 
