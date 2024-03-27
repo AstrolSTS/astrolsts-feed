@@ -5,7 +5,8 @@
       "ubus": {
         "kksdcmd": [ "*" ],
         "uci": [ "*" ],
-        "file": [ "*" ]
+        "file": [ "*" ],
+        "system": [ "*" ]
       },
       "file": {
         "/flash*": [ "*" ]
