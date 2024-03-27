@@ -3,7 +3,7 @@
 <head>
 	<link rel="stylesheet" type="text/css" href="/style.css">
 	<link rel="stylesheet" href="/css/all.min.css">
-	<script type="text/javascript" src="/script.js"></script>
+	<script type="text/javascript" charset="UTF-8" src="/script.js"></script>
 	<script src="/js/jquery.min.js"></script>
 	<script src="/js/utils.js"></script>
 	<script src="/js/p44api.js"></script>
@@ -20,16 +20,19 @@
 <div id="loginDialog">
 	<div class="popup">
 	  <div class="content">
-		<p id="loginMessage"><script>document.write(lng.msg_set_credentials[LNG])</script></p>
-		<label for="loginUser"><script>document.write(lng.username[LNG])</script>:</label><br/>
-		<select id="loginLevel">
-			<option value="ENG"><script>document.write(lng.engineer[LNG])</script></option>
-			<option value="US-ENG"><script>document.write(lng.us_engineer[LNG])</script></option>
-		</select>
-			<br/>
-		<label for="loginPassword"><script>document.write(lng.password[LNG])</script>:</label><br/>
-		<input type="password" name="loginPassword" id="loginPassword" value="" ><br/>
-		<button type="button" id="loginCheckButton" onclick="setLogin()"><script>document.write(lng.login[LNG])</script></button>
+		<form onsubmit="return false;">
+			<p id="loginMessage"><script>document.write(lng.msg_set_credentials[LNG])</script></p>
+			<label for="loginUser"><script>document.write(lng.username[LNG])</script>:</label><br/>
+			<select id="loginLevel">
+				<option value="ENG" ><script>document.write(lng.engineer[LNG])</script></option>
+				<option value="US-ENG" ><script>document.write(lng.us_engineer[LNG])</script></option>
+			</select>
+			<input hidden type="text"     autocomplete="username"         name="username"></input>
+				<br/>
+			<label for="loginPassword"><script>document.write(lng.password[LNG])</script>:</label><br/>
+			<input type="password" name="loginPassword" id="loginPassword" autocomplete="new-password" value="" ></input><br/>
+			<button type="submit" id="loginCheckButton" onclick="setLogin()"><script>document.write(lng.login[LNG])</script></button>
+		</form>
 	  </div>
 	</div>
 </div>

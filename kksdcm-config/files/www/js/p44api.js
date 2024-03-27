@@ -35,7 +35,7 @@ function apiCall(jsonquery, timeout, loginWhenNeeded, endpoint)
   return promise;
 }
 
-function apiCalKKS(jsonquery, timeout, loginWhenNeeded, endpoint)
+function apiCallKKS(jsonquery, timeout, loginWhenNeeded, endpoint)
 {
   if (loginWhenNeeded==undefined) loginWhenNeeded=true;
   if (endpoint!=undefined) {
@@ -43,7 +43,7 @@ function apiCalKKS(jsonquery, timeout, loginWhenNeeded, endpoint)
     jsonquery = { [endpoint]: jsonquery };
   }
   var dfd = $.Deferred();
-  var uc = ubusCall("file", "read", jsonquery, timeout, loginWhenNeeded).done(function(response) {
+  var uc = ubusCall("kksdcmd", "api", jsonquery, timeout, loginWhenNeeded).done(function(response) {
     if (response.result!==undefined) {
       dfd.resolve(response.result);
     }
