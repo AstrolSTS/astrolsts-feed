@@ -5,10 +5,11 @@ var activeConfigBIT = 7;
 var WEB_OFFLINE = 0;
 var MAX_GENERATORS = 16;
 var generatorComOK    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+var generatorFound    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 var COM_SCAN_TIME     = 10;
 var com_scan_cnt      = 0;
 
-var generatorEnabled  = [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];      // 0 = disable, 1 = enable
+var generatorEnabled  = [ 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = disable, 1 = enable
 var generatorSimulate = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = rest api, 2 = constant values
 var generatorIP =       [ 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16];      // ip address last segment (used for rest api)
 var generatorIPbase     = "192.168.1.";                                         // ip address first three segements (used for rest api)
@@ -26,7 +27,12 @@ function refreshRegisterList() {
         if(generatorEnabled[k]) {       
             if(generatorSimulate[k] == 0) {
                 // get modbus register contents
-                fetch_generator(k);
+                if(indexChanged || mb_response[k].length == 0) {
+                    fetch_generator(k, "all");
+                }
+                else {
+                    fetch_generator(k, "inputs");
+                }
             }
             else if(generatorSimulate[k] == 1) {
                 fetch_generator_rest_api(k);
@@ -41,10 +47,15 @@ function refreshRegisterList() {
     }
 }
 
-function fetch_generator(genIndex) {
-    let call = { "generator": genIndex, "cmd": "list", "refresh":true };
+function fetch_generator(genIndex,mode) {
+    let call;
+    switch(mode) {
+        default:
+        case "all":         call = { "generator": genIndex, "cmd": "list", "refresh":true }; break;
+        case "inputs":      call = { "generator": genIndex, "cmd": "read", "index": 0, "count": 32, "refresh":true }; break;
+        case "controls":    call = { "generator": genIndex, "cmd": "read", "index": 32, "count": 22, "refresh":true }; break;
+    }
     apiCall(call, 10000, true, "coreregs").done(function(response) {
-        mb_response[genIndex] = [];
         response.forEach(function(reg, index, registers) {
             var obj = {};
             obj.regidx = reg.regidx;
@@ -57,13 +68,14 @@ function fetch_generator(genIndex) {
             obj.value = reg.value;
             obj.formatted = reg.formatted;
             obj.symbol = reg.symbol;
-            mb_response[genIndex].push(obj);
+            mb_response[genIndex][obj.regidx] = obj;
         });
 
     }).fail(function(domain, code, message) {
         // API problem
         console.log('API error: ' + domain + '] Error ' + code.toString() + ': ' + message);
-        alert(lng[LNG].com_problem);
+        //alert(lng.com_problem[LNG];
+        
     });
     
 }
@@ -71,7 +83,6 @@ function fetch_generator(genIndex) {
 function fetch_generator_rest_api(genIndex) {
     if(generatorComOK[genIndex] > 0) {
         fetchWithTimeout("http://"+generatorIPbase+generatorIP[genIndex].toString()+"/mbRegisters",1000).then((data) => {
-            mb_response[genIndex] = [];
             var json = data;
             for(var i=0;i<json.length;i++) {
                 var reg = {};
@@ -93,7 +104,7 @@ function fetch_generator_rest_api(genIndex) {
                     var formValue = reg.value.toFixed(0);  
                 }
                 reg.formatted = formValue + " " + reg.symbol;
-                mb_response[genIndex].push(reg);
+                mb_response[genIndex][reg.regidx] = reg;
             }
         }).catch((error) => {
             generatorComOK[genIndex] = 0;
@@ -105,25 +116,33 @@ function update_modbus_register() {
     testValue++;
     localStorage.setItem('testValue', testValue);
     refreshRegisterList();
-    if(indexChanged) {
-        writeMonitorExtended(userLevel,"update");
-    }
-    update_generator_communication();
 }
 
 function end_of_update() {
-    if(isBackendConnected(activeIndex)) {
-        indexChanged = false;
+
+    if(indexChanged && userLevel != "USER") {
+        writeMonitorExtended(userLevel,"update");
     }
+    update_generator_communication();
+    indexChanged = false;
 }
 
 function update_generator_communication() {
-    if((com_scan_cnt % COM_SCAN_TIME) == 0 ) {
+    if(com_scan_cnt < COM_SCAN_TIME) {
         for(var k=0;k<MAX_GENERATORS;k++) {
             if(generatorEnabled[k]) {   
                 check_generator_com(k);
             }
         }
+    }
+    else {
+       if((com_scan_cnt % COM_SCAN_TIME) == 0) {
+            for(var k=0;k<MAX_GENERATORS;k++) {
+                if(generatorEnabled[k] && generatorFound[k]) {   
+                    check_generator_com(k);
+                }
+            }
+       }
     }
     com_scan_cnt++;
 
@@ -144,6 +163,7 @@ function check_generator_com(genIndex) {
         if(generatorSimulate[genIndex] < 2) {
             fetchWithTimeout ("http://"+generatorIPbase+generatorIP[genIndex].toString()+"/systemSettings",1000).then((response) => {    
                 generatorComOK[genIndex] = 1;
+                generatorFound[genIndex] = 1;
                 add_infos[genIndex] = response;
             }).catch((error) => {
                 generatorComOK[genIndex] = 0;
@@ -151,6 +171,7 @@ function check_generator_com(genIndex) {
         }
         if(generatorSimulate[genIndex] == 2) {
             generatorComOK[genIndex] = 1;
+            generatorFound[genIndex] = 1;
         }
     }
     else {
@@ -160,12 +181,12 @@ function check_generator_com(genIndex) {
             json.swVersion = "V " + response.release.version;
             add_infos[genIndex] = json;
             generatorComOK[genIndex] = 1;
+            generatorFound[genIndex] = 1;
         }); 
     }
 }
 
 function read_generator() {
-    console.log("read generator");
     indexChanged = true;
 }
 
@@ -218,15 +239,36 @@ function save_generator() {
         var fwOptions = getMBregister(activeIndex,"fwOptions").value;
         fwOptions |= (1 << 4);      // save persistent
         write_register("fwOptions",fwOptions);
+
+        commit_register("control0",0,15,true);          // commit control registers
+        commit_register("configSet1",0,22,true);        // commit frequency set 1
+        commit_register("configSet2",0,22,true);        // commit frequency set 2
+        commit_register("configSet3",0,22,true);        // commit frequency set 3
+        commit_register("configSet4",0,22,true);        // commit frequency set 4
+        if(generatorSimulate[activeIndex] == 0) {
+            fetch_generator(activeIndex, "controls");
+        }
     }
 }
 
 function write_register(id,value) {
+    commit_register(id,value,1,false);
+}
+
+function commit_register(id,value,count,commit) {
+
     if(generatorEnabled[activeIndex]) {
         if(generatorSimulate[activeIndex] == 0) {       
             let regidx = getMBregister(activeIndex,id).regidx;
             let newValue = value.toString();
-            let call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue};
+            let call;
+            if(commit == false) {
+                call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "commit": commit};   
+            }
+            else {
+                call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "count": count, "commit": commit};  
+            }
+  
             apiCall(call, 10000, true, "coreregs").done(function(response) {
                 // also refresh data (but not from SPI, just modbus)
                 //refreshValue(regidx, false);
@@ -255,8 +297,8 @@ function write_register(id,value) {
             });
         }
     }
+    
 }
-
 
 function resetCounterValue(id) {
     if(isBackendConnected(activeIndex)) {
@@ -495,7 +537,7 @@ function writeMonitorTable(level,init) {
     else {
         for(var index=0;index<MAX_GENERATORS;index++) {
             var id = 0;
-            if(isBackendConnected(index)) {
+            if(isBackendConnected(index) && generatorComOK[index] ) {
                 id = tableIds[0]+index; 
                 addHTML(id,"CM "+(index+1).toString());
                 status0 = getMBregister(index,"status0").value;
