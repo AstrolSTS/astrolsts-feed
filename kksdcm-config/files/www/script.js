@@ -1,6 +1,9 @@
 var userLevel =  "USER";
 var activeIndex = -1;
 var indexChanged = true;
+var refreshAll = false;
+var refreshAlldone = false;
+var commitGenerator = false;
 var activeConfigBIT = 7;
 var WEB_OFFLINE = 0;
 var MAX_GENERATORS = 16;
@@ -10,7 +13,7 @@ var COM_SCAN_TIME     = 10;
 var com_scan_cnt      = 0;
 
 var generatorEnabled  = [ 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = disable, 1 = enable
-var generatorSimulate = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = rest api, 2 = constant values
+var generatorSimulate = [ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = constant values
 var generatorIP =       [ 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16];      // ip address last segment (used for rest api)
 var generatorIPbase     = "192.168.1.";                                         // ip address first three segements (used for rest api)
 
@@ -21,13 +24,32 @@ var testValue = localStorage.getItem('testValue') || 0;
 var mb_response = [[],[],[],[], [],[],[],[], [],[],[],[], [],[],[],[]];
 var add_infos = [[],[],[],[], [],[],[],[], [],[],[],[], [],[],[],[]];
 
+
+function updatePage(page, level) {
+    if(page == "monitor" && (level == "US-ENG" || level == "ENG")) {
+        update_modbus_register();
+        writeMonitorTable(level,"update");
+        writeMonitorExtended(level,"update");
+        writeLMparameter(level,"update");
+        writeCounterOverview(level,"update");
+        end_of_update();
+    }
+    if(page == "monitor" && level == "USER") {
+        update_modbus_register();
+        writeMonitorTable(level,"update");
+        end_of_update();
+    }
+   
+}
+
+
 function refreshRegisterList() {
 
     for(var k=0;k<MAX_GENERATORS;k++) {
         if(generatorEnabled[k]) {       
             if(generatorSimulate[k] == 0) {
                 // get modbus register contents
-                if(indexChanged || mb_response[k].length == 0) {
+                if(indexChanged || mb_response[k].length == 0 || refreshAll) {
                     fetch_generator(k, "all");
                 }
                 else {
@@ -35,9 +57,6 @@ function refreshRegisterList() {
                 }
             }
             else if(generatorSimulate[k] == 1) {
-                fetch_generator_rest_api(k);
-            }
-            else if(generatorSimulate[k] == 2) {
                 mb_response[k] = [];
                 for(var i=0;i<sim_mb_data.result[1].result.length;i++) {
                     mb_response[k].push(sim_mb_data.result[1].result[i]);
@@ -69,6 +88,10 @@ function fetch_generator(genIndex,mode) {
             obj.formatted = reg.formatted;
             obj.symbol = reg.symbol;
             mb_response[genIndex][obj.regidx] = obj;
+            if(reg.regidx == 32 && refreshAll) {
+                refreshAll = false;
+                refreshAlldone = true;
+            }
         });
 
     }).fail(function(domain, code, message) {
@@ -80,37 +103,6 @@ function fetch_generator(genIndex,mode) {
     
 }
 
-function fetch_generator_rest_api(genIndex) {
-    if(generatorComOK[genIndex] > 0) {
-        fetchWithTimeout("http://"+generatorIPbase+generatorIP[genIndex].toString()+"/mbRegisters",1000).then((data) => {
-            var json = data;
-            for(var i=0;i<json.length;i++) {
-                var reg = {};
-                reg.regidx = i;
-                reg.regname = sim_mb_data.result[1].result[i].regname;
-                reg.description = sim_mb_data.result[1].result[i].description;
-                reg.modbusreg = sim_mb_data.result[1].result[i].modbusreg;
-                reg.spiaddr = sim_mb_data.result[1].result[i].spiaddr;
-                reg.min = sim_mb_data.result[1].result[i].min;
-                reg.max = sim_mb_data.result[1].result[i].max;
-                reg.symbol = sim_mb_data.result[1].result[i].symbol;
-                reg.resolution = sim_mb_data.result[1].result[i].resolution;
-                reg.value = parseInt(json[i],16) * reg.resolution;
-                var resoArray = reg.resolution.toString().split(".");
-                if(resoArray[1]) {
-                    var formValue = reg.value.toFixed(resoArray[1].length);
-                }
-                else {
-                    var formValue = reg.value.toFixed(0);  
-                }
-                reg.formatted = formValue + " " + reg.symbol;
-                mb_response[genIndex][reg.regidx] = reg;
-            }
-        }).catch((error) => {
-            generatorComOK[genIndex] = 0;
-        });   
-    }
-}
 
 function update_modbus_register() {
     testValue++;
@@ -120,12 +112,29 @@ function update_modbus_register() {
 
 function end_of_update() {
 
-    if(indexChanged && userLevel != "USER") {
+    if(refreshAlldone && userLevel != "USER") {
+        indexChanged = true;
+        save_fw_options(false);
         writeMonitorExtended(userLevel,"update");
+
+        refreshAlldone = false;
     }
     update_generator_communication();
     indexChanged = false;
+
+    if(commitGenerator) {
+        commitGenerator = false;
+        if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) { 
+            commit_register("control0",0,15,true);          // commit control registers
+            commit_register("configSet1",0,22,true);        // commit frequency set 1
+            commit_register("configSet2",0,22,true);        // commit frequency set 2
+            commit_register("configSet3",0,22,true);        // commit frequency set 3
+            commit_register("configSet4",0,22,true);        // commit frequency set 4
+        }
+    }
+
 }
+
 
 function update_generator_communication() {
     if(com_scan_cnt < COM_SCAN_TIME) {
@@ -160,7 +169,7 @@ function update_generator_communication() {
 
 function check_generator_com(genIndex) {
     if(genIndex > 0) {
-        if(generatorSimulate[genIndex] < 2) {
+        if(generatorSimulate[genIndex] < 1) {
             fetchWithTimeout ("http://"+generatorIPbase+generatorIP[genIndex].toString()+"/systemSettings",1000).then((response) => {    
                 generatorComOK[genIndex] = 1;
                 generatorFound[genIndex] = 1;
@@ -169,7 +178,7 @@ function check_generator_com(genIndex) {
                 generatorComOK[genIndex] = 0;
             });
         }
-        if(generatorSimulate[genIndex] == 2) {
+        if(generatorSimulate[genIndex] == 1) {
             generatorComOK[genIndex] = 1;
             generatorFound[genIndex] = 1;
         }
@@ -187,20 +196,15 @@ function check_generator_com(genIndex) {
 }
 
 function read_generator() {
-    indexChanged = true;
+    refreshAll = true;
 }
 
 function save_generator() {
-    if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 2) {       
+    if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) {       
         var control0 = getMBregister(activeIndex,"control0").value & (0x70);
         if(isButtonState("btStatusConfig_USpower", lng.start[LNG])) { control0 |= (1 << 0); }
         control0 |= (document.getElementById("idFreqSelect").value) << 1;
         if(isButtonState("btStatusConfig_Degas", lng.on[LNG])) { control0 |= (1 << 7); }
-
-
-        if(userLevel == "US-ENG") {
-
-        }
 
         write_register("control0",control0);
         write_register("control1",1);       // errReset
@@ -236,23 +240,24 @@ function save_generator() {
             }
 
         }
-        var fwOptions = getMBregister(activeIndex,"fwOptions").value;
-        fwOptions |= (1 << 4);      // save persistent
-        write_register("fwOptions",fwOptions);
-
-        commit_register("control0",0,15,true);          // commit control registers
-        commit_register("configSet1",0,22,true);        // commit frequency set 1
-        commit_register("configSet2",0,22,true);        // commit frequency set 2
-        commit_register("configSet3",0,22,true);        // commit frequency set 3
-        commit_register("configSet4",0,22,true);        // commit frequency set 4
-        if(generatorSimulate[activeIndex] == 0) {
-            fetch_generator(activeIndex, "controls");
-        }
+        save_fw_options(true);
+        commitGenerator = true;
     }
 }
 
 function write_register(id,value) {
     commit_register(id,value,1,false);
+}
+
+function commit_call(call) {
+    apiCall(call, 10000, true, "coreregs").done(function(response) {
+        if(call.commit == true) {
+            refreshAll = true;
+        }
+    }).fail(function(domain, code, message) {
+        // API problem
+        alert('API error: ' + domain + '] Error ' + code.toString() + ': ' + message);
+    });
 }
 
 function commit_register(id,value,count,commit) {
@@ -268,36 +273,33 @@ function commit_register(id,value,count,commit) {
             else {
                 call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "count": count, "commit": commit};  
             }
-  
-            apiCall(call, 10000, true, "coreregs").done(function(response) {
-                // also refresh data (but not from SPI, just modbus)
-                //refreshValue(regidx, false);
-            }).fail(function(domain, code, message) {
-                // API problem
-                alert('API error: ' + domain + '] Error ' + code.toString() + ': ' + message);
-            });
-            
-        }
-        else if(generatorSimulate[activeIndex] == 1) {
-            let regidx = getMBregister(activeIndex,id).regidx.toString();
-            let resolution = getMBregister(activeIndex,id).resolution;
-            let newValue = (value / resolution).toString();
-            fetch("http://"+generatorIPbase+generatorIP[activeIndex].toString()+"/mbRegisters", {
-                method: "POST",
-                body: JSON.stringify({
-                    regIndex: regidx,
-                    regValue: newValue
-                }),
-                headers: {
-                    "Content-type": "application/json; charset=UTF-8",
-                    "Access-Control-Allow-Origin":  "*",
-                    "Access-Control-Allow-Methods": "POST",
-                    "Access-Control-Allow-Headers": "*"
-                }
-            });
+            commit_call(call); 
         }
     }
-    
+}
+
+function save_fw_options(permanent) {
+    var fwOptions = 0;
+
+    if(userLevel == "US-ENG") {
+        fwOptions |= document.getElementById("iduRangeSet").value & 0x03;
+        fwOptions |= (document.getElementById("idiRangeSet").value & 0x03) << 2;
+        if(isButtonState("btSaveOperationPoint", lng.on[LNG])) { fwOptions |= (1 << 4); }
+        fwOptions |= (document.getElementById("idComSelect").value & 0x03) << 6;
+    }
+    else {
+        fwOptions = getMBregister(activeIndex,"fwOptions").value;
+    } 
+    if(permanent) {
+        fwOptions |= (1 << 4);      // save persistent   
+        write_register("fwOptions",fwOptions);
+    }
+    else {
+        var fwOptionsAct = getMBregister(activeIndex,"fwOptions").value;
+        if(fwOptionsAct & (1 << 4)) {       // is save flag set
+            commit_register("fwOptions",fwOptions,1,true);                  // clear save flag
+        }
+    }
 }
 
 function resetCounterValue(id) {
@@ -337,11 +339,13 @@ function resetCounterValue(id) {
                 regName[0] = id.substring(2) + index;
             }           
         }
+        console.log(regName);
         for(var i=0;i<regName.length;i++) {
             if(regName[i] != "") {
                 write_register(regName[i],0);  
             }
         }
+        commitGenerator = true;
     }
 
 }
@@ -986,6 +990,16 @@ function extMonitorStatusConfig(init,level) {
         document.write("<tr><td>"+lng.op_state[LNG] +"</td><td><span id='idOPstate'>-</span></td></tr>");
         document.write("<tr><td>"+lng.settling_status[LNG] +"</td><td><span id='idSettling'>-</span></td></tr>");
 
+        if(level == "US-ENG") {
+            document.write("<tr><td>"+lng.voltage_meas_range[LNG] +"</td>");
+            document.write("<td><select id='iduRangeSet' class=paramSelect><option value=0>33V</option><option value=1>95V</option><option value=2>390V</option><option value=3>450V</option></select></tr>");
+            document.write("<tr><td>"+lng.current_meas_range[LNG] +"</td>");
+            document.write("<td><select id='idiRangeSet' class=paramSelect><option value=0>10A</option><option value=1>20A</option><option value=2>30A</option><option value=3>40A</option></select></tr>");
+            document.write("<tr><td>"+lng.save_operation_point[LNG] +"</td><td><input id='btSaveOperationPoint' type='button' class='btOFF' value='"+lng.off[LNG] +"' onclick="+"changeButtonState(this.id,'"+lng.on[LNG] +"','"+lng.off[LNG] +"')"+"></input></td></tr>");
+            document.write("<tr><td>"+lng.interface[LNG] +"</td>");
+            document.write("<td><select id='idComSelect' class=paramSelect><option value=0>AUTO</option><option value=1>DCM</option><option value=2>RMT</option><option value=3>ON_OFF</option></select></tr>");
+        }
+
         document.write("<tr><td><input id='btReadGenerator' type='button' class='btnCounterReset' onclick='read_generator()' value='"+lng.read[LNG]+"'></input></td><td><input id='btSaveGenerator' type='button' class='btnCounterReset' onclick='save_generator()' value='"+lng.save[LNG]+"'></input></td></tr>");
         
         document.write("</tbody></table>")
@@ -997,6 +1011,7 @@ function extMonitorStatusConfig(init,level) {
         var status0 = 0;
         var status1 = 0;
         var configSet = 0;
+        var fwOptions = 0;
         if(isBackendConnected(activeIndex)) {
             control0 = getMBregister(activeIndex,"control0").value;
             status0 = getMBregister(activeIndex,"status0").value;
@@ -1012,6 +1027,14 @@ function extMonitorStatusConfig(init,level) {
                 document.getElementById("par_DegasCycleTime").value = getMBregister(activeIndex,"degasCycleTime").value;
                 document.getElementById("par_DegasTime").value = getMBregister(activeIndex,"degasTime").value;
                 document.getElementById("par_DegasCycleCount").value = getMBregister(activeIndex,"degasCycleCount").value;
+
+                if(level == "US-ENG") {
+                    fwOptions = getMBregister(activeIndex,"fwOptions").value;
+                    document.getElementById("iduRangeSet").value = fwOptions & 0x03;
+                    document.getElementById("idiRangeSet").value = (fwOptions >> 2) & 0x03;
+                    setButtonState("btSaveOperationPoint",fwOptions & (1 << 4),lng.on[LNG],lng.off[LNG]);
+                    document.getElementById("idComSelect").value = (fwOptions >> 6) & 0x03; 
+                }
 
             }
             
@@ -1034,6 +1057,13 @@ function extMonitorStatusConfig(init,level) {
             document.getElementById("btReadGenerator").disabled = false;
             document.getElementById("btSaveGenerator").disabled = false;
 
+            if(level == "US-ENG") {
+                document.getElementById("iduRangeSet").disabled = false;
+                document.getElementById("idiRangeSet").disabled = false;
+                document.getElementById("btSaveOperationPoint").disabled = false;
+                document.getElementById("idComSelect").disabled = false;
+            }
+
         }
         else {
             if(indexChanged) {
@@ -1055,6 +1085,13 @@ function extMonitorStatusConfig(init,level) {
             document.getElementById("idFreqSelect").disabled = true;
             document.getElementById("btReadGenerator").disabled = true;
             document.getElementById("btSaveGenerator").disabled = true;
+
+            if(level == "US-ENG") {
+                document.getElementById("iduRangeSet").disabled = true;
+                document.getElementById("idiRangeSet").disabled = true;
+                document.getElementById("btSaveOperationPoint").disabled = true;
+                document.getElementById("idComSelect").disabled = true;
+            }
 
         }        
     }
@@ -1738,7 +1775,11 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   reset_all_counters:           ["Delete all counter state from config set idx?","Alle Z%E4hlerst%E4nde aus dem Konfig-Set idx l%F6schen?"],
   us_short:                     ["US",                              "US"],
   com_problem:                  ["DCM communicaton problem",        "DCM Kommunikationsproblem"],
-
+  voltage_meas_range:           ["Voltage measure range",           "Spannungsmessbereich"],
+  current_meas_range:           ["Current measure range",           "Strommessbereich"],
+  save_operation_point:         ["Save operation point",            "Arbeitspunkt speichern"],
+  interface:                    ["COM Interface",                   "Komm. Schnittstelle"],
+  
   //----Error text, keep order
   error_0:                      ["no error",                        "kein Fehler"],
   error_1:                      ["Overtemperature",                 "&Uuml;bertemperatur"],

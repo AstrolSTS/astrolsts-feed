@@ -10,9 +10,7 @@
 		<script src="/js/p44api.js"></script>
 		<script type="text/javascript">
 			function onLoad() {
-				update_modbus_register();
-				writeMonitorTable("USER","update");
-				end_of_update();
+				updatePage("monitor", "USER");
 				setTimeout('onLoad();', 1000);
 			}
 		</script>
