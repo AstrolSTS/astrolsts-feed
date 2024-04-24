@@ -12,7 +12,7 @@ var generatorFound    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 var COM_SCAN_TIME     = 10;
 var com_scan_cnt      = 0;
 
-var generatorEnabled  = [ 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = disable, 1 = enable
+var generatorEnabled  = [ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = disable, 1 = enable
 var generatorSimulate = [ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = constant values
 var generatorIP =       [ 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16];      // ip address last segment (used for rest api)
 var generatorIPbase     = "192.168.1.";                                         // ip address first three segements (used for rest api)
