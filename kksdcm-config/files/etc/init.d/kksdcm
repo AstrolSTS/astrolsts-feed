@@ -157,4 +157,7 @@ boot() {
   # start u2pnpd which for some reason does not autostart (or terminates)
   /etc/init.d/u2pnpd start
 
+  # start pn_dev application with debug outputs
+  /usr/bin/pn_dev -v -v -v -v -i eth0 -p /root
+
 }

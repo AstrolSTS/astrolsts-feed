@@ -12,7 +12,7 @@ var generatorFound    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 var COM_SCAN_TIME     = 10;
 var com_scan_cnt      = 0;
 
-var generatorEnabled  = [ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = disable, 1 = enable
+var generatorEnabled  = [ 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = disable, 1 = enable
 var generatorSimulate = [ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = constant values
 var generatorIP =       [ 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16];      // ip address last segment (used for rest api)
 var generatorIPbase     = "192.168.1.";                                         // ip address first three segements (used for rest api)
@@ -125,11 +125,16 @@ function end_of_update() {
     if(commitGenerator) {
         commitGenerator = false;
         if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) { 
-            commit_register("control0",0,15,true);          // commit control registers
-            commit_register("configSet1",0,22,true);        // commit frequency set 1
-            commit_register("configSet2",0,22,true);        // commit frequency set 2
-            commit_register("configSet3",0,22,true);        // commit frequency set 3
-            commit_register("configSet4",0,22,true);        // commit frequency set 4
+            if(activeIndex != 0) {
+                commit_register("control0",0,15,true);          // commit control registers
+                commit_register("configSet1",0,22,true);        // commit frequency set 1
+                commit_register("configSet2",0,22,true);        // commit frequency set 2
+                commit_register("configSet3",0,22,true);        // commit frequency set 3
+                commit_register("configSet4",0,22,true);        // commit frequency set 4
+            }
+            else {
+                refreshAll = true;
+            }
         }
     }
 
@@ -246,12 +251,13 @@ function save_generator() {
 }
 
 function write_register(id,value) {
+    
     commit_register(id,value,1,false);
 }
 
 function commit_call(call) {
     apiCall(call, 10000, true, "coreregs").done(function(response) {
-        if(call.commit == true) {
+        if(call.commit == true && activeIndex != 0) {
             refreshAll = true;
         }
     }).fail(function(domain, code, message) {
@@ -268,7 +274,12 @@ function commit_register(id,value,count,commit) {
             let newValue = value.toString();
             let call;
             if(commit == false) {
-                call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "commit": commit};   
+                if(activeIndex != 0) {
+                    call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "commit": commit};   
+                }
+                else {
+                    call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "commit": true}; 
+                }
             }
             else {
                 call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "count": count, "commit": commit};  
