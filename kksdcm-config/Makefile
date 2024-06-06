@@ -73,6 +73,7 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DIR) $(1)/lib/firmware/device-tree/overlays
 	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_DIR) $(1)/flash
 	$(CP) $(PKG_BUILD_DIR)/etc/* $(1)/etc
 	$(CP) $(PKG_BUILD_DIR)/config_p44defaults_${P44_CONFIG_PLATFORM_IDENTIFIER}/* $(1)/etc/config_p44defaults
 	$(CP) $(PKG_BUILD_DIR)/config_p44defaults_${P44_CONFIG_PLATFORM_IDENTIFIER}/* $(1)/etc/config
@@ -84,6 +85,8 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/keep-kksdcm $(1)/lib/upgrade/keep.d/kksdcm
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ubus-acls/* $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/*.dtbo $(1)/lib/firmware/device-tree/overlays
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/flash/kks-pass-eng $(1)/flash/kks-pass-eng
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/flash/kks-pass-us-eng $(1)/flash/kks-pass-us-eng
 	
 endef
 
