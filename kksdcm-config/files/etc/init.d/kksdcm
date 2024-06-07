@@ -159,5 +159,13 @@ boot() {
 
   # start pn_dev application with debug outputs
   #/usr/bin/pn_dev -i eth0 -p /root
+  
+  # update to default network settings if file exists
+  if [ -e /etc/config/network_kks ]
+  then
+    cp -f /etc/config/network_kks /etc/config/network
+    rm /etc/config/network_kks
+    reboot
+  fi
 
 }
