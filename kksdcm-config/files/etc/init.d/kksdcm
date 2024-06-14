@@ -164,6 +164,9 @@ boot() {
     rm /etc/config/network_kks
     reboot
   fi
+  
+  # start eth led control script
+  /usr/bin/eth_led_control &
 
   # start pn_dev application with debug outputs
   /usr/bin/pn_dev -i eth0.0 -p /root

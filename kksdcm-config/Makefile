@@ -82,6 +82,7 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/sbin/* $(1)/sbin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/usr/bin/set_network_parameters $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/usr/bin/set_profinet_leds $(1)/usr/bin
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/usr/bin/eth_led_control $(1)/usr/bin
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/keep-kksdcm $(1)/lib/upgrade/keep.d/kksdcm
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ubus-acls/* $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/*.dtbo $(1)/lib/firmware/device-tree/overlays

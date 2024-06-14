@@ -1,0 +1,41 @@
+#!/usr/bin/env sh
+
+echo 41 > /sys/class/gpio/export  #ETH0 link led
+echo 11 > /sys/class/gpio/export  #ETH1 link led
+echo 37 > /sys/class/gpio/export  #ETH3 link led
+echo 36 > /sys/class/gpio/export  #ETH4 link led
+
+echo out > /sys/class/gpio/gpio41/direction
+echo out > /sys/class/gpio/gpio11/direction
+echo out > /sys/class/gpio/gpio37/direction
+echo out > /sys/class/gpio/gpio36/direction
+
+
+while true; do
+    #ETH0
+    if swconfig dev switch0 port 0 show | grep -q "link:up"; then
+        echo 0 > /sys/class/gpio/gpio41/value
+    else
+        echo 1 > /sys/class/gpio/gpio41/value
+    fi
+    #ETH1
+    if swconfig dev switch0 port 1 show | grep -q "link:up"; then
+        echo 0 > /sys/class/gpio/gpio11/value
+    else
+        echo 1 > /sys/class/gpio/gpio11/value
+    fi    
+    #ETH3
+    if swconfig dev switch0 port 3 show | grep -q "link:up"; then
+        echo 0 > /sys/class/gpio/gpio37/value
+    else
+        echo 1 > /sys/class/gpio/gpio37/value
+    fi        
+    #ETH4
+    if swconfig dev switch0 port 4 show | grep -q "link:up"; then
+        echo 0 > /sys/class/gpio/gpio36/value
+    else
+        echo 1 > /sys/class/gpio/gpio36/value
+    fi         
+    sleep 1
+
+done
