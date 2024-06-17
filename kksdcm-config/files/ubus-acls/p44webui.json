@@ -9,7 +9,8 @@
         "system": [ "*" ]
       },
       "file": {
-        "/flash*": [ "*" ]
+        "/flash*": [ "*" ],
+        "/root*": [ "*" ]
       },
       "uci": [ "network" ]
     },
@@ -20,7 +21,8 @@
         "file": [ "*" ]
       },
       "file": {
-        "/flash*": [ "*" ]
+        "/flash*": [ "*" ],
+        "/root*": [ "*" ]
       },
       "uci": [ "network" ]
     }
