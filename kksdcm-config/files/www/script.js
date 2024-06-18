@@ -12,6 +12,7 @@ var generatorFound    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 var COM_SCAN_TIME     = 10;
 var com_scan_cnt      = 0;
 
+
 var generatorEnabled  = [ 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = disable, 1 = enable
 var generatorSimulate = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = constant values
 var generatorIP =       [ 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16];      // ip address last segment (used for rest api)
@@ -44,7 +45,6 @@ function updatePage(page, level) {
 
 
 function refreshRegisterList() {
-
     for(var k=0;k<MAX_GENERATORS;k++) {
         if(generatorEnabled[k]) {       
             if(generatorSimulate[k] == 0) {
@@ -74,32 +74,34 @@ function fetch_generator(genIndex,mode) {
         case "inputs":      call = { "generator": genIndex, "cmd": "read", "index": 0, "count": 35, "refresh":true }; break;
         case "controls":    call = { "generator": genIndex, "cmd": "read", "index": 32, "count": 22, "refresh":true }; break;
     }
-    apiCall(call, 10000, true, "coreregs").done(function(response) {
-        response.forEach(function(reg, index, registers) {
-            var obj = {};
-            obj.regidx = reg.regidx;
-            obj.regname = reg.regname;
-            obj.description = reg.description;
-            obj.modbusreg = reg.modbusreg;
-            obj.spiaddr = reg.spiaddr;
-            obj.min = reg.min;
-            obj.max = reg.max;
-            obj.value = reg.value;
-            obj.formatted = reg.formatted;
-            obj.symbol = reg.symbol;
-            mb_response[genIndex][obj.regidx] = obj;
-            if(reg.regidx == 32 && refreshAll) {
-                refreshAll = false;
-                refreshAlldone = true;
-            }
-        });
+    if(generatorComOK[genIndex]) {
+        apiCall(call, 10000, true, "coreregs").done(function(response) {
+            response.forEach(function(reg, index, registers) {
+                var obj = {};
+                obj.regidx = reg.regidx;
+                obj.regname = reg.regname;
+                obj.description = reg.description;
+                obj.modbusreg = reg.modbusreg;
+                obj.spiaddr = reg.spiaddr;
+                obj.min = reg.min;
+                obj.max = reg.max;
+                obj.value = reg.value;
+                obj.formatted = reg.formatted;
+                obj.symbol = reg.symbol;
+                mb_response[genIndex][obj.regidx] = obj;
+                if(reg.regidx == 32 && refreshAll) {
+                    refreshAll = false;
+                    refreshAlldone = true;
+                }
+            });
 
-    }).fail(function(domain, code, message) {
-        // API problem
-        console.log('API error: ' + domain + '] Error ' + code.toString() + ': ' + message);
-        //alert(lng.com_problem[LNG];
-        
-    });
+        }).fail(function(domain, code, message) {
+            // API problem
+            console.log('API error: ' + domain + '] Error ' + code.toString() + ': ' + message);
+            //alert(lng.com_problem[LNG];
+            
+        });
+    }
     
 }
 
@@ -141,7 +143,7 @@ function end_of_update() {
 }
 
 
-function update_generator_communication() {
+function update_generator_communication() {    
     if(com_scan_cnt < COM_SCAN_TIME) {
         for(var k=0;k<MAX_GENERATORS;k++) {
             if(generatorEnabled[k]) {   
@@ -150,15 +152,16 @@ function update_generator_communication() {
         }
     }
     else {
-       if((com_scan_cnt % COM_SCAN_TIME) == 0) {
-            for(var k=0;k<MAX_GENERATORS;k++) {
-                if(generatorEnabled[k] && generatorFound[k]) {   
-                    check_generator_com(k);
-                }
+    if((com_scan_cnt % COM_SCAN_TIME) == 0) {
+        for(var k=0;k<MAX_GENERATORS;k++) {
+            if(generatorEnabled[k] && generatorFound[k]) {   
+                check_generator_com(k);
             }
-       }
+        }
+    }
     }
     com_scan_cnt++;
+
 
     for(var k=0;k<MAX_GENERATORS;k++) {
         var id = "monIndex"+k; 
@@ -196,7 +199,9 @@ function check_generator_com(genIndex) {
             add_infos[genIndex] = json;
             generatorComOK[genIndex] = 1;
             generatorFound[genIndex] = 1;
+            console.log("catch system infos");
         }); 
+        
     }
 }
 
