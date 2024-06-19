@@ -132,12 +132,12 @@ function end_of_update() {
         commitGenerator = false;
         if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) { 
             if(activeIndex != 0) {
-                setTimeout(function() { commit_register("control0","",2,true); },         100);     // commit control registers
-                setTimeout(function() { commit_register("degasCycleTime","",8,true); },   200);     // commit control registers
-                setTimeout(function() { commit_register("configSet1","",22,true);  },     300);     // commit frequency set 1
-                setTimeout(function() { commit_register("configSet2","",22,true);  },     400);     // commit frequency set 2
-                setTimeout(function() { commit_register("configSet3","",22,true);  },     500);     // commit frequency set 3
-                setTimeout(function() { commit_register("configSet4","",22,true);  },     600);     // commit frequency set 4
+                setTimeout(function() { commit_register("configSet1","",22,true);  },     100);     // commit frequency set 1
+                setTimeout(function() { commit_register("configSet2","",22,true);  },     200);     // commit frequency set 2
+                setTimeout(function() { commit_register("configSet3","",22,true);  },     300);     // commit frequency set 3
+                setTimeout(function() { commit_register("configSet4","",22,true);  },     400);     // commit frequency set 4
+                setTimeout(function() { commit_register("control0","",2,true); },         500);     // commit control registers
+                setTimeout(function() { commit_register("degasCycleTime","",8,true); },   600);     // commit control registers
             }
             else {
                 refreshAll = true;
