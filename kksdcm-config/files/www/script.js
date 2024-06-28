@@ -4,11 +4,13 @@ var indexChanged = true;
 var refreshAll = false;
 var refreshAlldone = false;
 var commitGenerator = false;
+var commitGeneratorSettings = false;
 var activeConfigBIT = 15;
 var WEB_OFFLINE = 0;
 var MAX_GENERATORS = 16;
 var generatorComOK    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 var generatorFound    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+var markingChanges    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 var COM_SCAN_TIME     = 10;
 var com_scan_cnt      = 0;
 var nb_commits        = 0;
@@ -114,6 +116,14 @@ function update_modbus_register() {
     testValue++;
     localStorage.setItem('testValue', testValue);
     refreshRegisterList();
+
+    for(var i=0;i<MAX_GENERATORS;i++) {
+        if(markingChanges[i] && generatorEnabled[i]) {
+            save_generator();
+            //console.log("changes on: "+i);
+            markingChanges[i] = 0;
+        } 
+    }
 }
 
 function end_of_update() {
@@ -132,12 +142,18 @@ function end_of_update() {
         commitGenerator = false;
         if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) { 
             if(activeIndex != 0) {
-                setTimeout(function() { commit_register("configSet1","",22,true);  },     100);     // commit frequency set 1
-                setTimeout(function() { commit_register("configSet2","",22,true);  },     200);     // commit frequency set 2
-                setTimeout(function() { commit_register("configSet3","",22,true);  },     300);     // commit frequency set 3
-                setTimeout(function() { commit_register("configSet4","",22,true);  },     400);     // commit frequency set 4
-                setTimeout(function() { commit_register("control0","",2,true); },         500);     // commit control registers
-                setTimeout(function() { commit_register("degasCycleTime","",8,true); },   600);     // commit control registers
+                if(commitGeneratorSettings) {
+                    commitGeneratorSettings == false;
+                    setTimeout(function() { commit_register("configSet1","",22,true);  },     100);     // commit frequency set 1
+                    setTimeout(function() { commit_register("configSet2","",22,true);  },     200);     // commit frequency set 2
+                    setTimeout(function() { commit_register("configSet3","",22,true);  },     300);     // commit frequency set 3
+                    setTimeout(function() { commit_register("configSet4","",22,true);  },     400);     // commit frequency set 4
+                    setTimeout(function() { commit_register("control0","",2,true); },         500);     // commit control registers
+                    setTimeout(function() { commit_register("degasCycleTime","",8,true); },   600);     // commit control registers
+                }
+                else {
+                    setTimeout(function() { commit_register("control0","",2,true); },         100);     // commit control registers
+                }
             }
             else {
                 refreshAll = true;
@@ -213,56 +229,66 @@ function read_generator() {
     refreshAll = true;
 }
 
+function save_generator_all() {
+    commitGeneratorSettings = true;
+    save_generator();
+}
+
 function save_generator() {
     if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) {       
         var control0 = getMBregister(activeIndex,"control0").value & (0x70);
         if(isButtonState("btStatusConfig_USpower", lng.start[LNG])) { control0 |= (1 << 0); }
-        var actFreqSet = (document.getElementById("idFreqSelect").value);
+        var actFreqSet = getFreqSelect();
         control0 |= actFreqSet << 1;
         if(isButtonState("btStatusConfig_Degas", lng.on[LNG])) { control0 |= (1 << 7); }
 
         write_register("control1",1);       // errReset
-
-        write_register("degasCycleTime",document.getElementById("par_DegasCycleTime").value);
-        write_register("degasTime",document.getElementById("par_DegasTime").value);
-        write_register("degasCycleCount",document.getElementById("par_DegasCycleCount").value);       
-
-        var actConfigSet = 0;
-        for(var i=0;i<4;i++) {
-            var configSet = getMBregister(activeIndex,"configSet"+(i+1)).value;
-            if(userLevel == "US-ENG") {
-                configSet &= (0x01);                            // all bits except usPower
-                if(document.getElementById("configSet"+i.toString()+"1").checked) { configSet |= (1 << 1);}
-                if(document.getElementById("configSet"+i.toString()+"2").checked) { configSet |= (1 << 2);}
-                if(document.getElementById("configSet"+i.toString()+"3").checked) { configSet |= (1 << 3);}
-                if(document.getElementById("configSet"+i.toString()+"5").checked) { configSet |= (1 << 5);}
-                if(document.getElementById("configSet"+i.toString()+"6").checked) { configSet |= (1 << 6);}
-            }
-            else {
-                configSet &= ~(1 << activeConfigBIT);           // activation bit only
-            }
-            if(document.getElementById("idCBsetActive"+i).checked) { configSet |= (1 << activeConfigBIT);}
-            write_register("configSet"+(i+1),configSet);
-            if(i == (actFreqSet - 1)) {
-                actConfigSet = configSet;
-            }
-
-            write_register("powerRangeSet"+(i+1),document.getElementById("powerRangeSet"+(i)).value);  
-            write_register("powerSet"+(i+1),document.getElementById("powerSet"+(i)).value);  
-            write_register("frqMinSet"+(i+1),document.getElementById("frqMinSet"+(i)).value);  
-            if(userLevel == "US-ENG") {
-                write_register("frqMaxSet"+(i+1),document.getElementById("frqMaxSet"+(i)).value);  
-                write_register("phaseSet"+(i+1),document.getElementById("phaseSet"+(i)).value);  
-                write_register("frqSweepShapeSet"+(i+1),document.getElementById("frqSweepShapeSet"+(i)).value);  
-                write_register("frqSweepModFrqSet"+(i+1),document.getElementById("frqSweepModFrqSet"+(i)).value);  
-                write_register("frqSweepRangeSet"+(i+1),document.getElementById("frqSweepRangeSet"+(i)).value);  
-            }
-        }
-        control0 &= ~(0x60);        // mask out sweepAmpl and sweepFrq
-        actConfigSet &= (0x60);     // fill in actual bits
-        write_register("control0",control0 | actConfigSet) ;
-        write_register("targetPower",document.getElementById("powerSet"+(actFreqSet-1)).value);  
+        commitGeneratorSettings = true;
         
+        if(commitGeneratorSettings) {
+            write_register("degasCycleTime",document.getElementById("par_DegasCycleTime").value);
+            write_register("degasTime",document.getElementById("par_DegasTime").value);
+            write_register("degasCycleCount",document.getElementById("par_DegasCycleCount").value);       
+
+            var actConfigSet = 0;
+            for(var i=0;i<4;i++) {
+                var configSet = getMBregister(activeIndex,"configSet"+(i+1)).value;
+                if(userLevel == "US-ENG") {
+                    configSet &= (0x01);                            // all bits except usPower
+                    if(document.getElementById("configSet"+i.toString()+"1").checked) { configSet |= (1 << 1);}
+                    if(document.getElementById("configSet"+i.toString()+"2").checked) { configSet |= (1 << 2);}
+                    if(document.getElementById("configSet"+i.toString()+"3").checked) { configSet |= (1 << 3);}
+                    if(document.getElementById("configSet"+i.toString()+"5").checked) { configSet |= (1 << 5);}
+                    if(document.getElementById("configSet"+i.toString()+"6").checked) { configSet |= (1 << 6);}
+                }
+                else {
+                    configSet &= ~(1 << activeConfigBIT);           // activation bit only
+                }
+                if(document.getElementById("idCBsetActive"+i).checked) { configSet |= (1 << activeConfigBIT);}
+                write_register("configSet"+(i+1),configSet);
+                if(i == (actFreqSet - 1)) {
+                    actConfigSet = configSet;
+                }
+
+                write_register("powerRangeSet"+(i+1),document.getElementById("powerRangeSet"+(i)).value);  
+                write_register("powerSet"+(i+1),document.getElementById("powerSet"+(i)).value);  
+                write_register("frqMinSet"+(i+1),document.getElementById("frqMinSet"+(i)).value);  
+                if(userLevel == "US-ENG") {
+                    write_register("frqMaxSet"+(i+1),document.getElementById("frqMaxSet"+(i)).value);  
+                    write_register("phaseSet"+(i+1),document.getElementById("phaseSet"+(i)).value);  
+                    write_register("frqSweepShapeSet"+(i+1),document.getElementById("frqSweepShapeSet"+(i)).value);  
+                    write_register("frqSweepModFrqSet"+(i+1),document.getElementById("frqSweepModFrqSet"+(i)).value);  
+                    write_register("frqSweepRangeSet"+(i+1),document.getElementById("frqSweepRangeSet"+(i)).value);  
+                }
+            }
+            control0 &= ~(0x60);        // mask out sweepAmpl and sweepFrq
+            actConfigSet &= (0x60);     // fill in actual bits
+            write_register("control0",control0 | actConfigSet) ;
+            write_register("targetPower",document.getElementById("powerSet"+(actFreqSet-1)).value);  
+        }  
+        else {
+            write_register("control0",control0); 
+        }  
         save_fw_options(true);
         commitGenerator = true;
     }
@@ -351,7 +377,7 @@ function save_fw_options(permanent) {
 
 function resetCounterValue(id) {
     if(isBackendConnected(activeIndex)) {
-        var index = document.getElementById("idFreqSelect").value;
+        var index = getFreqSelect();
         var regName = [];
         if(id == "btallCnt") {
             if(confirm(unescape(lng.reset_all_counters[LNG].replace("idx",index)))) {
@@ -867,7 +893,7 @@ function updateExtMonitorInfo(index) {
     else {
         document.getElementById('paramActiveName').innerHTML = lng.parameter[LNG] + " CM"+(index+1).toString();
         document.getElementById('extMonitorActiveName').innerHTML = lng.settings[LNG] + " CM"+(index+1).toString();
-        document.getElementById('idCounterOverviewName').innerHTML = lng.counter[LNG] + " CM"+(index+1).toString() + " - " + document.getElementById("idFreqSelect").value.toString();
+        document.getElementById('idCounterOverviewName').innerHTML = lng.counter[LNG] + " CM"+(index+1).toString() + " - " + getFreqSelect().toString();
         eLMparam.style.display = "block";
         eExtMoni.style.display = "block";
         eCntOver.style.display = "block";
@@ -1022,7 +1048,11 @@ function extMonitorStatusConfig(init,level) {
         document.write("<table id='extMonStatusConfigTable' style='width:100%'><colgroup><col style='width:70%'><col style='width:30%'></colgroup><tbody>");
         document.write("<tr><td>"+lng.us_power[LNG] +"</td><td><input id='btStatusConfig_USpower' type='button' class='btOFF' value='"+lng.stop[LNG] +"' onclick="+"changeButtonState(this.id,'"+lng.start[LNG] +"','"+lng.stop[LNG] +"')"+"></input></td></tr>");
         document.write("<tr><td>"+lng.frequency[LNG] +"</td>");
-        document.write("<td><select id='idFreqSelect' class=paramSelect onchange='setFreqSelection(this.id,false)'></select></tr>");
+        document.write("<td><input id='btFrq0' type='button' class='btBitOFF' value='1' onclick="+"changeBitState(this.id)"+"></input>");
+        document.write("<input id='btFrq1' type='button' class='btBitOFF' value='2' onclick="+"changeBitState(this.id)"+"></input>");
+        document.write("<input id='btFrq2' type='button' class='btBitOFF' value='3' onclick="+"changeBitState(this.id)"+"></input>");
+        document.write("<input id='btFrq3' type='button' class='btBitOFF' value='4' onclick="+"changeBitState(this.id)"+"></input></td></tr>");
+
         document.write("<tr><td>"+lng.degas[LNG] +"</td><td><input id='btStatusConfig_Degas' type='button' class='btOFF' value='"+lng.off[LNG] +"' onclick="+"changeButtonState(this.id,'"+lng.on[LNG] +"','"+lng.off[LNG] +"')"+"></input></td></tr>");
         
         document.write("<tr><td>"+lng.degas_cycle_time[LNG] +"</td><td><input type='text' id='par_DegasCycleTime'  class='LMparam' value='0'></input></td></tr>");
@@ -1047,7 +1077,7 @@ function extMonitorStatusConfig(init,level) {
             document.write("<td><select id='idComSelect' class=paramSelect><option value=0>AUTO</option><option value=1>DCM</option><option value=2>RMT</option><option value=3>ON_OFF</option></select></tr>");
         }
 
-        document.write("<tr><td><input id='btReadGenerator' type='button' class='btnCounterReset' onclick='read_generator()' value='"+lng.read[LNG]+"'></input></td><td><input id='btSaveGenerator' type='button' class='btnCounterReset' onclick='save_generator()' value='"+lng.save[LNG]+"'></input></td></tr>");
+        document.write("<tr><td><input id='btReadGenerator' type='button' class='btnCounterReset' onclick='read_generator()' value='"+lng.read[LNG]+"'></input></td><td><input id='btSaveGenerator' type='button' class='btnCounterReset' onclick='save_generator_all()' value='"+lng.save[LNG]+"'></input></td></tr>");
         
         document.write("</tbody></table>")
         document.write("<div style='width:300px;height:0px'></div>");
@@ -1063,14 +1093,13 @@ function extMonitorStatusConfig(init,level) {
             control0 = getMBregister(activeIndex,"control0").value;
             status0 = getMBregister(activeIndex,"status0").value;
             if(indexChanged) {
-                if(setButtonState("btStatusConfig_USpower",status0 & (1 << 0),lng.start[LNG],lng.stop[LNG])) {
-                    //state has changed
-                }
-                setFreqSelection("idFreqSelect","init");
-                if(setButtonState("btStatusConfig_Degas",status0 & (1 << 7),lng.on[LNG],lng.off[LNG])) {
-                    //state has changed
-                }
-
+                //if(setButtonState("btStatusConfig_USpower",control0 & (1 << 0),lng.start[LNG],lng.stop[LNG])) {
+                    //markingChanges[activeIndex] = 1; //state has changed
+                //}
+                //if(setButtonState("btStatusConfig_Degas",control0 & (1 << 7),lng.on[LNG],lng.off[LNG])) {
+                    //markingChanges[activeIndex] = 1; //state has changed
+                //}
+                //setFreqSelect((status0 >> 1) & 0x3);
                 document.getElementById("par_DegasCycleTime").value = getMBregister(activeIndex,"degasCycleTime").value;
                 document.getElementById("par_DegasTime").value = getMBregister(activeIndex,"degasTime").value;
                 document.getElementById("par_DegasCycleCount").value = getMBregister(activeIndex,"degasCycleCount").value;
@@ -1090,7 +1119,7 @@ function extMonitorStatusConfig(init,level) {
             if(status1 & (1 << 0)) { addHTML("idOPstate", lng.run[LNG]); } else { addHTML("idOPstate", lng.ready[LNG]);}     
             if(status1 & (1 << 1)) { addHTML("idSettling", lng.active[LNG]); } else { addHTML("idSettling", lng.inactive[LNG]);}     
     
-            configSet = getMBregister(activeIndex,"configSet" + document.getElementById("idFreqSelect").value).value;
+            configSet = getMBregister(activeIndex,"configSet" + getFreqSelect().toString()).value;
             if(configSet & (1 << 3)) { addHTML("idResonance", lng.serial[LNG]); } else { addHTML("idResonance", lng.parallel[LNG]);}  
             if(configSet & (1 << 1)) { addHTML("idPhaseOptimization", lng.on[LNG]); } else { addHTML("idPhaseOptimization", lng.off[LNG]);}
             if(configSet & (1 << 2)) { addHTML("idFreqRegulation", lng.on[LNG]); } else { addHTML("idFreqRegulation", lng.off[LNG]);}
@@ -1100,9 +1129,11 @@ function extMonitorStatusConfig(init,level) {
             document.getElementById("par_DegasCycleTime").disabled = false;
             document.getElementById("par_DegasTime").disabled = false;
             document.getElementById("par_DegasCycleCount").disabled = false;
-            document.getElementById("idFreqSelect").disabled = false;
+            //document.getElementById("idFreqSelect").disabled = false;
             document.getElementById("btReadGenerator").disabled = false;
             document.getElementById("btSaveGenerator").disabled = false;
+
+            updateFreqSelection();
 
             if(level == "US-ENG") {
                 document.getElementById("iduRangeSet").disabled = false;
@@ -1113,9 +1144,6 @@ function extMonitorStatusConfig(init,level) {
 
         }
         else {
-            if(indexChanged) {
-                setFreqSelection("idFreqSelect","init");
-            }
             addHTML("idFreqSweep", "-");
             addHTML("idAmplSweep", "-");  
             addHTML("idResonance", "-");  
@@ -1129,7 +1157,12 @@ function extMonitorStatusConfig(init,level) {
             document.getElementById("par_DegasCycleTime").disabled = true;
             document.getElementById("par_DegasTime").disabled = true;
             document.getElementById("par_DegasCycleCount").disabled = true;
-            document.getElementById("idFreqSelect").disabled = true;
+            //document.getElementById("idFreqSelect").disabled = true;
+            for(var i=0;i<4;i++) {
+                document.getElementById("btFrq"+i).disabled = true; 
+                setBitState("btFrq"+i,0);
+
+            }
             document.getElementById("btReadGenerator").disabled = true;
             document.getElementById("btSaveGenerator").disabled = true;
 
@@ -1142,6 +1175,30 @@ function extMonitorStatusConfig(init,level) {
 
         }        
     }
+}
+
+function updateFreqSelection() {
+    var nbFreq = 0;
+    for(var i=0;i<4;i++) {
+        if(document.getElementById("idCBsetActive"+i).checked) {
+            document.getElementById("btFrq"+i).disabled = false;
+        }
+        else {
+            setBitState("btFrq"+i, 0);
+            document.getElementById("btFrq"+i).disabled = true;
+        }
+    }
+    for(var i=0;i<4;i++) {
+        if(isBitState("btFrq"+i)) {
+            nbFreq++;
+        }
+    }
+    if(nbFreq == 0){
+        var status0 = getMBregister(activeIndex,"status0").value;
+        setFreqSelect((status0 >> 1) & 0x3);
+    }
+
+
 }
 
 function extMonitorGeneratorInfo(init) {
@@ -1344,6 +1401,36 @@ function changeSliderValue(id,tarID,forceUpdate) {
     }
 }
 
+function changeBitState(id) {
+    var element = document.getElementById(id);
+    if(element) {
+        for(var i = 0;i<4;i++) {
+            var idx = "btFrq"+i;
+            if(isBitState(idx) && id != idx){
+                setBitState(idx,0);
+            }
+        }
+        //if(element.classList.contains("btBitON")) {
+        //    element.className = "btBitOFF";
+        //}
+        //else 
+        if(element.classList.contains("btBitOFF")) {
+            element.className = "btBitON";
+        }
+        if(isBackendConnected(activeIndex)) {
+            // marking selected generator value has changed if connected only
+            if(id == "btFrq0" || id == "btFrq1" || id == "btFrq2" || id == "btFrq3") {
+                markingChanges[activeIndex] = 1;
+            }
+        }
+
+    }
+
+    
+
+
+}
+
 function changeButtonState(id,strON,strOFF) {
     var element = document.getElementById(id);
     if(element) {
@@ -1357,6 +1444,9 @@ function changeButtonState(id,strON,strOFF) {
         }
         if(isBackendConnected(activeIndex)) {
             // marking selected generator value has changed if connected only
+            if(id == "btStatusConfig_USpower" || id == "btStatusConfig_Degas") {
+                markingChanges[activeIndex] = 1;
+            }
         }
     }
 }
@@ -1384,67 +1474,24 @@ function setButtonState(id,value,strON,strOFF) {
     }
 }
 
-function setFreqSelection(id,init) {
+function setBitState(id,value) {
     var element = document.getElementById(id);
     if(element) {
-        var length = element.options.length;
-        if(init == "init" || init == "param") {
-            for (i = length-1; i >= 0; i--) {
-                element.options[i] = null;
-            }
+        if(element.classList.contains("btBitON") && value) {    
+            return 0;       // already correct set
         }
-
-        if(isBackendConnected(activeIndex)) {
-            if(init == "init" || init == "param") {
-                var supportedFreq = 0;
-                for(var i=0;i<4;i++) {
-                    if(init == "init") {
-                        if(getMBregister(activeIndex,"configSet" + (i+1).toString()).value & (1 << activeConfigBIT)) {
-                            supportedFreq |= (1 << i);
-                        }
-                    }
-                    else {
-                        if(document.getElementById("idCBsetActive"+i).checked) {
-                            supportedFreq |= (1 << i);
-                        }
-                    }
-                }
-            
-                var selectedFreq = (getMBregister(activeIndex,"status0").value >> 1) & 0x07;
-                if(init == "param") {
-                    for(var i=0;i<4;i++) {
-                        if(document.getElementById("idCBsetActive"+i).checked) {
-                            selectedFreq = i+1;
-                            break;
-                        }
-                    }
-                }
-
-                var selectedIndex = 0;
-                for(var i=0;i<4;i++) {
-                    if(supportedFreq & (1 << i)) {
-                        element.options[element.options.length] = new Option(i+1, i+1);
-                    }   
-                }
-                for(var i=0;i<element.options.length;i++) {
-                    if((selectedFreq) == parseInt(element.options[i].value)) {
-                        selectedIndex = i;
-                        break;
-                    }  
-                }
-                element.options.selectedIndex = selectedIndex;
-            }
-            else {
-                //state has changed
-            }
-            if(element.options.length == 0) {
-                element.options[element.options.length] = new Option('1', '1');
-            }
+        else if(element.classList.contains("btBitOFF") && !value) {
+            return 0;       // already correct cleared
         }
         else {
-            element.options[element.options.length] = new Option('1', '1');
+            if(value) {
+                element.className = "btBitON";
+            }
+            else {
+                element.className = "btBitOFF";
+            }
+            return 1;       // changed
         }
-
     }
 }
 
@@ -1498,8 +1545,8 @@ function writeCounterOverview(level,init) {
         }
         else {
             if(isBackendConnected(activeIndex)) {
-                document.getElementById('idCounterOverviewName').innerHTML = lng.counter[LNG] + " CM"+(activeIndex+1).toString() + " - " + document.getElementById("idFreqSelect").value.toString();
-                var index = document.getElementById("idFreqSelect").value;
+                document.getElementById('idCounterOverviewName').innerHTML = lng.counter[LNG] + " CM"+(activeIndex+1).toString() + " - " + getFreqSelect().toString();
+                var index = getFreqSelect();
                 addHTML("operatingTime", getMBregister(activeIndex,"operatingTime").formatted.trim());
 
                 addHTML("CntOverTempSet", getMBregister(activeIndex,"CntOverTempSet"+index).formatted.trim());
@@ -1600,6 +1647,30 @@ function writeInfo(init) {
 
 }
 
+function getFreqSelect() {
+    var ret = 1;
+    for(var i=0;i<4;i++) {
+        if(isBitState("btFrq"+i)) {
+            ret = i+1;
+            break;
+        }
+    }
+    return ret;
+}
+
+function setFreqSelect(index) {
+    for(var i=0;i<4;i++) {
+        var idx = "btFrq"+i;
+        if(i == index - 1) {
+           setBitState(idx,1); 
+        }
+        else {
+            setBitState(idx,0); 
+        }
+    }
+    
+}
+
 function updateConfigSet(id) {
     var number_of_checkboxes = 0;
     for(var i=0;i<4;i++) {
@@ -1610,7 +1681,6 @@ function updateConfigSet(id) {
     if(number_of_checkboxes == 0) {
         document.getElementById(id).checked = true;
     }
-    setFreqSelection("idFreqSelect","param");
     writeLMparameter(userLevel,"parDisable");
 }
 
@@ -1667,6 +1737,16 @@ function isButtonState(id,text) {
     var elem = document.getElementById(id);
     if(elem) {
         if(elem.value === text) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+function isBitState(id) {
+    var elem = document.getElementById(id);
+    if(elem) {
+        if(elem.classList.contains("btBitON")) {
             return 1;
         }
     }

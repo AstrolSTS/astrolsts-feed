@@ -439,7 +439,7 @@ body {
 }
 
 .btON {
-  width: 70px;
+  width: 72px;
   border-radius: var(--borderradius);
   border: var(--bordercolor) 1px solid;
   padding: 4x;
@@ -453,7 +453,7 @@ body {
 }
 
 .btOFF {
-  width: 70px;
+  width: 72px;
   border-radius: var(--borderradius);
   border: var(--bordercolor) 1px solid;
   padding: 4x;
@@ -466,8 +466,36 @@ body {
   color: var(--textcolorDark);
 }
 
+.btBitON {
+  width: 18px;
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  padding: 2x;
+  background-color: var(--buttoncolorON);
+  color: var(--textcolorDark);
+}
+
+.btBitON:disabled {
+  background-color: var(--buttoncolorOFF);
+  color: var(--textcolorDark);
+}
+
+.btBitOFF {
+  width: 18px;
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  padding: 2px;
+  background-color: var(--buttoncolorOFF);
+  color: var(--textcolor);
+}
+
+.btBitOFF:disabled {
+  background-color: var(--buttoncolorOFF);
+  color: var(--textcolorDark);
+}
+
 .paramSelect {
-  width: 70px;
+  width: 72px;
   height: 20px;
   text-align: right;
 }
