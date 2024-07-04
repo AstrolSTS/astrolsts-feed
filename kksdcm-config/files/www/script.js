@@ -1,6 +1,8 @@
 var userLevel =  "USER";
 var activeIndex = -1;
 var indexChanged = true;
+var parameterInit = false;
+var parameterCheckboxLast = 0;
 var refreshAll = false;
 var refreshAlldone = false;
 var commitGenerator = false;
@@ -23,12 +25,17 @@ var generatorIPbase     = "192.168.1.";                                         
 var b64_logo = "data:image/png;base64,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tzV5D7jcAYafdMmQHMlPUygUgPcz+qYcMHQL9K25vbX2cfoAZKir5Rvg4BAYL1L2use7A529/Xum1d8PgctyrfsL78EAAA+caVRYdFhNTDpjb20uYWRvYmUueG1wAAAAAAA8P3hwYWNrZXQgYmVnaW49Iu+7vyIgaWQ9Ilc1TTBNcENlaGlIenJlU3pOVGN6a2M5ZCI/Pgo8eDp4bXBtZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIiB4OnhtcHRrPSJYTVAgQ29yZSA0LjQuMC1FeGl2MiI+CiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPgogIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiCiAgICB4bWxuczppcHRjRXh0PSJodHRwOi8vaXB0Yy5vcmcvc3RkL0lwdGM0eG1wRXh0LzIwMDgtMDItMjkvIgogICAgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iCiAgICB4bWxuczpzdEV2dD0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL3NUeXBlL1Jlc291cmNlRXZlbnQjIgogICAgeG1sbnM6cGx1cz0iaHR0cDovL25zLnVzZXBsdXMub3JnL2xkZi94bXAvMS4wLyIKICAgIHhtbG5zOkdJTVA9Imh0dHA6Ly93d3cuZ2ltcC5vcmcveG1wLyIKICAgIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIKICAgIHhtbG5zOnRpZmY9Imh0dHA6Ly9ucy5hZG9iZS5jb20vdGlmZi8xLjAvIgogICAgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIgogICB4bXBNTTpEb2N1bWVudElEPSJnaW1wOmRvY2lkOmdpbXA6ZDZlOTJmMDAtMzliNi00NGEwLThmYmMtMDYxOGI2ZTQzOTc0IgogICB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOmU2YTZiMjYxLTNmOTctNDVlNy1hNmQ0LThiMWI5YTc1NDU5MiIKICAgeG1wTU06T3JpZ2luYWxEb2N1bWVudElEPSJ4bXAuZGlkOjkxNTE2NGI0LTU2N2MtNDRhMi04MDYxLWZlNDM4ZDM4NTc0NSIKICAgR0lNUDpBUEk9IjIuMCIKICAgR0lNUDpQbGF0Zm9ybT0iV2luZG93cyIKICAgR0lNUDpUaW1lU3RhbXA9IjE2NjMzMTg0MTgzNTEzOTgiCiAgIEdJTVA6VmVyc2lvbj0iMi4xMC4yMiIKICAgZGM6Rm9ybWF0PSJpbWFnZS9wbmciCiAgIHRpZmY6T3JpZW50YXRpb249IjEiCiAgIHhtcDpDcmVhdG9yVG9vbD0iR0lNUCAyLjEwIj4KICAgPGlwdGNFeHQ6TG9jYXRpb25DcmVhdGVkPgogICAgPHJkZjpCYWcvPgogICA8L2lwdGNFeHQ6TG9jYXRpb25DcmVhdGVkPgogICA8aXB0Y0V4dDpMb2NhdGlvblNob3duPgogICAgPHJkZjpCYWcvPgogICA8L2lwdGNFeHQ6TG9jYXRpb25TaG93bj4KICAgPGlwdGNFeHQ6QXJ0d29ya09yT2JqZWN0PgogICAgPHJkZjpCYWcvPgogICA8L2lwdGNFeHQ6QXJ0d29ya09yT2JqZWN0PgogICA8aXB0Y0V4dDpSZWdpc3RyeUlkPgogICAgPHJkZjpCYWcvPgogICA8L2lwdGNFeHQ6UmVnaXN0cnlJZD4KICAgPHhtcE1NOkhpc3Rvcnk+CiAgICA8cmRmOlNlcT4KICAgICA8cmRmOmxpCiAgICAgIHN0RXZ0OmFjdGlvbj0ic2F2ZWQiCiAgICAgIHN0RXZ0OmNoYW5nZWQ9Ii8iCiAgICAgIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6OGQyNTVmNjEtYjViMy00YWJmLTg2NTQtYzZjNTJhNTk3MDZkIgogICAgICBzdEV2dDpzb2Z0d2FyZUFnZW50PSJHaW1wIDIuMTAgKFdpbmRvd3MpIgogICAgICBzdEV2dDp3aGVuPSIyMDIyLTA5LTE2VDEwOjUzOjM4Ii8+CiAgICA8L3JkZjpTZXE+CiAgIDwveG1wTU06SGlzdG9yeT4KICAgPHBsdXM6SW1hZ2VTdXBwbGllcj4KICAgIDxyZGY6U2VxLz4KICAgPC9wbHVzOkltYWdlU3VwcGxpZXI+CiAgIDxwbHVzOkltYWdlQ3JlYXRvcj4KICAgIDxyZGY6U2VxLz4KICAgPC9wbHVzOkltYWdlQ3JlYXRvcj4KICAgPHBsdXM6Q29weXJpZ2h0T3duZXI+CiAgICA8cmRmOlNlcS8+CiAgIDwvcGx1czpDb3B5cmlnaHRPd25lcj4KICAgPHBsdXM6TGljZW5zb3I+CiAgICA8cmRmOlNlcS8+CiAgIDwvcGx1czpMaWNlbnNvcj4KICA8L3JkZjpEZXNjcmlwdGlvbj4KIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAKPD94cGFja2V0IGVuZD0idyI/PkJUIFQAAAAGYktHRAD/AP8A/6C9p5MAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfmCRAINSYv73EiAAAgAElEQVR42u19aXRc5Znm892t6tamUm1SSZZsybJkC+8GjCEQx3TASWiSEAJkMMQQBgayzGR6Oqf7nJkz82NO98zp6enu5BCysATcQEhoSCeGIUDAMSRgbBljC7xgC9mytiotpdrv+s2Pa0t1Jevekl0qOe37nKNz7NKtq6rvvs/37u9Hent7KRw4cHBOMGf/oSsKQB2uOLjEQanBhekE0QoFqLmcs0AOLmmouRy0QmEmQVi3G/J4ClTXnVVycGkqD12HnEqBdbtnEoQRBGiFAqSREWelHFySkEZGoBcKYARhJkEAQKitRe7Yx6Cq5qyWg0tLe6gacsc+Bh+sPbeTbhAkCC2dQf70aWfFHFxSyJ8+DS2dgVAbnJ0ghOPAx6JI790HXVacVXNwSUBXFKT37gMfi4Jw3OwEAQBx0SIUDhxE/mSvs3IOLg3t0XsShQMHITY2zvjdDIIItUEIS5ox8Yd3oBWlMg04J3/i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";
 var LNG = localStorage.getItem('languageIndex') || 0;
 var testValue = localStorage.getItem('testValue') || 0;
+var userLevelLogged = localStorage.getItem('userLevelLogged') || 0;
+
 
 var mb_response = [[],[],[],[], [],[],[],[], [],[],[],[], [],[],[],[]];
 var add_infos = [[],[],[],[], [],[],[],[], [],[],[],[], [],[],[],[]];
 
 
 function updatePage(page, level) {
+
+    level = check_access(level);
+
     if(page == "monitor" && (level == "US-ENG" || level == "ENG")) {
         update_modbus_register();
         writeMonitorTable(level,"update");
@@ -78,7 +85,7 @@ function fetch_generator(genIndex,mode) {
         case "all":         call = { "generator": genIndex, "cmd": "list", "refresh":true }; break;
         case "inputs":      call = { "generator": genIndex, "cmd": "read", "index": 0, "count": 32, "refresh":true }; break;
         case "controls":    call = { "generator": genIndex, "cmd": "read", "index": 32, "count": 22, "refresh":true }; break;
-        case "pn_controls": call = { "generator": genIndex, "cmd": "read", "index": 32, "count": 3, "refresh":false }; break;
+        case "pn_controls": call = { "generator": genIndex, "cmd": "read", "index": 32, "count": 7, "refresh":false }; break;
     }
     if(generatorComOK[genIndex]) {
         apiCall(call, 10000, true, "coreregs").done(function(response) {
@@ -132,7 +139,7 @@ function end_of_update() {
         indexChanged = true;
         save_fw_options(false);
         writeMonitorExtended(userLevel,"update");
-
+        writeLMparameter(userLevel,"update");
         refreshAlldone = false;
     }
     update_generator_communication();
@@ -149,20 +156,25 @@ function end_of_update() {
                     setTimeout(function() { commit_register("configSet3","",22,true);  },     300);     // commit frequency set 3
                     setTimeout(function() { commit_register("configSet4","",22,true);  },     400);     // commit frequency set 4
                     setTimeout(function() { commit_register("control0","",2,true); },         500);     // commit control registers
-                    setTimeout(function() { commit_register("degasCycleTime","",8,true); },   600);     // commit control registers
+                    setTimeout(function() { commit_register("degasCycleTime","",3,true); },   600);     // commit control registers
+                    setTimeout(function() { commit_register("operatingTime","",1,true); },   700);     
+                    setTimeout(function() { commit_register("cntPowerUp","",2,true); },   800);     
                 }
                 else {
                     setTimeout(function() { commit_register("control0","",2,true); },         100);     // commit control registers
                 }
             }
             else {
-                refreshAll = true;
+                //refreshAll = true;
             }
         }
     }
 
 }
 
+function refresh_all_delayed() {
+    refreshAll = true;
+}
 
 function update_generator_communication() {    
     if(com_scan_cnt < COM_SCAN_TIME) {
@@ -229,6 +241,16 @@ function read_generator() {
     refreshAll = true;
 }
 
+function reset_generator() {
+    if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) {  
+        var control0 = getMBregister(activeIndex,"control0").value;
+        control0 &= ~(0x01);                    // stop generator
+        write_register("control0",control0); 
+        write_register("control1",1);           // errReset
+        commitGenerator = true;
+    }
+}
+
 function save_generator_all() {
     commitGeneratorSettings = true;
     save_generator();
@@ -242,13 +264,15 @@ function save_generator() {
         control0 |= actFreqSet << 1;
         if(isButtonState("btStatusConfig_Degas", lng.on[LNG])) { control0 |= (1 << 7); }
 
-        write_register("control1",1);       // errReset
+        //write_register("control1",1);       // errReset
         commitGeneratorSettings = true;
-        
+
         if(commitGeneratorSettings) {
-            write_register("degasCycleTime",document.getElementById("par_DegasCycleTime").value);
-            write_register("degasTime",document.getElementById("par_DegasTime").value);
-            write_register("degasCycleCount",document.getElementById("par_DegasCycleCount").value);       
+            if(userLevel == "US-ENG") {
+                write_register("degasCycleTime",document.getElementById("par_DegasCycleTime").value);
+                write_register("degasTime",document.getElementById("par_DegasTime").value);
+                write_register("degasCycleCount",document.getElementById("par_DegasCycleCount").value);       
+            }
 
             var actConfigSet = 0;
             for(var i=0;i<4;i++) {
@@ -273,8 +297,8 @@ function save_generator() {
                 write_register("powerRangeSet"+(i+1),document.getElementById("powerRangeSet"+(i)).value);  
                 write_register("powerSet"+(i+1),document.getElementById("powerSet"+(i)).value);  
                 write_register("frqMinSet"+(i+1),document.getElementById("frqMinSet"+(i)).value);  
+                write_register("frqMaxSet"+(i+1),document.getElementById("frqMaxSet"+(i)).value);  
                 if(userLevel == "US-ENG") {
-                    write_register("frqMaxSet"+(i+1),document.getElementById("frqMaxSet"+(i)).value);  
                     write_register("phaseSet"+(i+1),document.getElementById("phaseSet"+(i)).value);  
                     write_register("frqSweepShapeSet"+(i+1),document.getElementById("frqSweepShapeSet"+(i)).value);  
                     write_register("frqSweepModFrqSet"+(i+1),document.getElementById("frqSweepModFrqSet"+(i)).value);  
@@ -285,6 +309,8 @@ function save_generator() {
             actConfigSet &= (0x60);     // fill in actual bits
             write_register("control0",control0 | actConfigSet) ;
             write_register("targetPower",document.getElementById("powerSet"+(actFreqSet-1)).value);  
+            write_register("frqMin",document.getElementById("frqMinSet"+(actFreqSet-1)).value);  
+            write_register("frqMax",document.getElementById("frqMaxSet"+(actFreqSet-1)).value);  
         }  
         else {
             write_register("control0",control0); 
@@ -295,7 +321,6 @@ function save_generator() {
 }
 
 function write_register(id,value) {
-    
     commit_register(id,value,1,false);
 }
 
@@ -323,7 +348,7 @@ function commit_register(id,value,count,commit) {
             let doCommitOnly = false;
             let newValue = 0;
             let call;
-            if(value == "") {
+            if(value === "") {
                 doCommitOnly = true;
             }
             else {
@@ -412,19 +437,20 @@ function resetCounterValue(id) {
                 regName[0] = id.substring(2) + index;
             }           
         }
-        console.log(regName);
         for(var i=0;i<regName.length;i++) {
             if(regName[i] != "") {
                 write_register(regName[i],0);  
             }
         }
         commitGenerator = true;
+        commitGeneratorSettings = true;
     }
 
 }
 
 
 function writeNavMenu(level) {
+    level = check_access(level);
     userLevel = level;
     document.write("<div class='navbar'>");
 
@@ -494,6 +520,7 @@ function setLogin(level) {
 
 function setLogout() {
     localStorage.setItem('ubus_session', false);
+    localStorage.setItem('userLevelLogged', "USER");
     window.location.href = "index.html";
 }
 
@@ -503,7 +530,7 @@ function setNewPassword() {
 }
 
 function writePasswordSettings(level, init) {
-
+    level = check_access(level);
     if(level == "US-ENG" && init == "init") {
         document.write("<div id='loginDialog'>");
         document.write("<div class='popup'>");
@@ -514,9 +541,6 @@ function writePasswordSettings(level, init) {
 		document.write("<label for='loginUser1'>"+lng.us_engineer[LNG]+":</label><br/>");
 		document.write("<input type='text' name='loginPassword2' id='loginPassword2' value=''><br/>");
 		document.write("<button type='button' id='loginCheckNewPasswordButton' onclick='setNewPassword()'>"+lng.change[LNG]+"</button>");
-
-        document.write("<button type='button' id='btReadVersion' onclick='readVersion()'>Read Version</button>");
-
         document.write("</div></div></div>");
         read_account_settings();
     }
@@ -560,6 +584,7 @@ function check_account_settings(level, nextURL) {
         var uc = ubusCall("file", "read", jsonquery, 10000, true).done(function(response) {
             if(document.getElementById("loginPassword").value == atob(response.data)) {
                 window.location.href = nextURL;
+                localStorage.setItem('userLevelLogged', "ENG");
             }
         }); 
     }
@@ -568,9 +593,17 @@ function check_account_settings(level, nextURL) {
         var uc = ubusCall("file", "read", jsonquery, 10000, true).done(function(response) {
             if(document.getElementById("loginPassword").value == atob(response.data)) {
                 window.location.href = nextURL;
+                localStorage.setItem('userLevelLogged', "US-ENG");
             }
         }); 
     }
+}
+
+function check_access(level) {
+    if(level != userLevelLogged) {
+        level = "USER";
+    }
+    return level;
 }
 
 function writeMonitorTable(level,init) {
@@ -578,6 +611,8 @@ function writeMonitorTable(level,init) {
     var tableIds = ["monIndex", "monUS", "monActPower", "monSetPower", "monDegas", "monFreq", "monStatus"];
     var maxRow = MAX_GENERATORS + 1;
     var maxCol = tableIds.length;
+
+    level = check_access(level);
 
     if(level == "ENG" || level == "US-ENG") {
         maxCol = 8;
@@ -672,177 +707,270 @@ function writeMonitorTable(level,init) {
         }
 
     }
+    
 }
 
 function writeLMparameter(level,init) {
-    
-    var tableContent = [
-        ["label",lng.setting_number[LNG],         "",       "1", "2","3", "4"],
-        ["checkbox",lng.active[LNG],              "idCBsetActive",      "0", "0", "0", "0"],
-        ["text",lng.set_power_short[LNG],         "powerRangeSet",      "0", "0","0", "0"],
-        ["text",lng.set_power_short[LNG],         "powerSet",      "0", "0","0", "0"],
-        ["text",lng.freq_min[LNG],                "frqMinSet",     "0", "0","0", "0"],
-        ["text",lng.freq_max[LNG],                "frqMaxSet",     "0", "0", "0","0"],
-        ["text",lng.phase_set[LNG],               "phaseSet",  "0", "0", "0","0"],
-        ["text",lng.wob_shap_set[LNG],            "frqSweepShapeSet",       "0", "0", "0","0"],
-        ["text",lng.wob_freq_set[LNG],            "frqSweepModFrqSet",     "0", "0","0", "0"],
-        ["text",lng.wob_ampl_set[LNG],            "frqSweepRangeSet",     "0", "0","0", "0"],
-        ["checkbox",lng.freq_sweep[LNG],          "configSet",         "5", "5", "5", "5"],
-        ["checkbox",lng.ampl_sweep[LNG],          "configSet",         "6", "6", "6", "6"],
-        ["checkbox",lng.serial_resonance[LNG],    "configSet",         "3", "3", "3", "3"],
-        ["checkbox",lng.phase_optimizing[LNG],    "configSet",         "1", "1", "1", "1"],
-        ["checkbox",lng.freq_regulation_short[LNG],"configSet",         "2", "2", "2", "2"],
 
-    ]
+    level = check_access(level);
+    if(level == "ENG" || level == "US-ENG") {
+        
+        var tableContent = [
+            ["label",lng.setting_number[LNG],         "",       "1", "2","3", "4"],
+            ["checkbox",lng.active[LNG],              "idCBsetActive",      "0", "0", "0", "0"],
+            ["text",lng.set_power_short[LNG],         "powerRangeSet",      "0", "0","0", "0"],
+            ["text",lng.set_power_short[LNG],         "powerSet",      "0", "0","0", "0"],
+            ["text",lng.freq_min[LNG],                "frqMinSet",     "0", "0","0", "0"],
+            ["text",lng.freq_max[LNG],                "frqMaxSet",     "0", "0", "0","0"],
+            ["text",lng.phase_set[LNG],               "phaseSet",  "0", "0", "0","0"],
+            ["text",lng.wob_shap_set[LNG],            "frqSweepShapeSet",       "0", "0", "0","0"],
+            ["text",lng.wob_freq_set[LNG],            "frqSweepModFrqSet",     "0", "0","0", "0"],
+            ["text",lng.wob_ampl_set[LNG],            "frqSweepRangeSet",     "0", "0","0", "0"],
+            ["checkbox",lng.freq_sweep[LNG],          "configSet",         "5", "5", "5", "5"],
+            ["checkbox",lng.ampl_sweep[LNG],          "configSet",         "6", "6", "6", "6"],
+            ["checkbox",lng.serial_resonance[LNG],    "configSet",         "3", "3", "3", "3"],
+            ["checkbox",lng.phase_optimizing[LNG],    "configSet",         "1", "1", "1", "1"],
+            ["checkbox",lng.freq_regulation_short[LNG],"configSet",         "2", "2", "2", "2"],
 
-    var maxRow = 5;
-    var maxCol = 7;
-    if(level == "US-ENG") {
-        maxRow = 15;
-    }
-    if(init == "init") {
-        document.write("<div id='idLMparameter' class='LMparameter'>");
+        ]
 
-        document.write("<h3 class='contentHeader'><span id='paramActiveName'>" + lng.parameter[LNG] + "</span></h3>");
+        var maxRow = 6;
+        var maxCol = 7;
+        if(level == "US-ENG") {
+            maxRow = 15;
+        }
+        if(init == "init") {
+            document.write("<div id='idLMparameter' class='LMparameter'>");
 
-        document.write("<table class='paramTable'>");
-        document.write("<tbody>");
-        for(var row=0;row<maxRow;row++) {
-            document.write("<tr>");
-            var colType = tableContent[row][0];
-            for(var col=1;col<maxCol;col++) {
-                if(col >= 3) {
-                    if(colType == "label") {
-                        document.write("<td>");
-                        document.write("<label class='LMparam'>"+tableContent[row][col]+"</label>");
-                    }
-                    if(colType == "text") {
-                        document.write("<td>");
-                        var elemID = "";
-                        if(tableContent[row][2] != "") {
-                            elemID = "id='"+tableContent[row][2]+(col - 3).toString()+"'";
+            document.write("<h3 class='contentHeader'><span id='paramActiveName'>" + lng.parameter[LNG] + "</span></h3>");
+
+            document.write("<table class='paramTable'>");
+            document.write("<tbody>");
+            for(var row=0;row<maxRow;row++) {
+                document.write("<tr>");
+                var colType = tableContent[row][0];
+                for(var col=1;col<maxCol;col++) {
+                    if(col >= 3) {
+                        if(colType == "label") {
+                            document.write("<td>");
+                            document.write("<label class='LMparam'>"+tableContent[row][col]+"</label>");
                         }
-                        document.write("<input type='text' "+elemID + " class='LMparam' value="+tableContent[row][col]+"></input>");
-                    }
-                    if(colType == "checkbox") {
-                        document.write("<td>");
-                        if(tableContent[row][col] != "") {
-                            if(tableContent[row][2] == "idCBsetActive") {
-                                document.write("<input type='checkbox' id='"+tableContent[row][2] +(col - 3).toString() + "' class='LMparamCheckbox' onchange='updateConfigSet(this.id)'></input>");
+                        if(colType == "text") {
+                            document.write("<td>");
+                            var elemID = "";
+                            if(tableContent[row][2] != "") {
+                                elemID = "id='"+tableContent[row][2]+(col - 3).toString()+"'";
                             }
-                            else {
-                                if(tableContent[row][2] != "") {
-                                    var bit =tableContent[row][col];
-                                    document.write("<input type='checkbox' id='"+tableContent[row][2] +(col - 3).toString() + bit.toString() +"' class='LMparamCheckbox'></input>");
+                            document.write("<input type='text' "+elemID + " class='LMparam' value="+tableContent[row][col]+" onblur='limitParameter()'></input>");
+                        }
+                        if(colType == "checkbox") {
+                            document.write("<td>");
+                            if(tableContent[row][col] != "") {
+                                if(tableContent[row][2] == "idCBsetActive") {
+                                    document.write("<input type='checkbox' id='"+tableContent[row][2] +(col - 3).toString() + "' class='LMparamCheckbox' onchange='updateConfigSet(this.id)'></input>");
+                                }
+                                else {
+                                    if(tableContent[row][2] != "") {
+                                        var bit =tableContent[row][col];
+                                        document.write("<input type='checkbox' id='"+tableContent[row][2] +(col - 3).toString() + bit.toString() +"' class='LMparamCheckbox'></input>");
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                else {
-                    document.write("<td>");
-                    if(col == 2 && tableContent[row][2] != "") {
-                        document.write("<span id='unit_"+tableContent[row][2]+"'></span>");
-                    }
                     else {
-                        document.write(tableContent[row][col]);  
+                        document.write("<td>");
+                        if(col == 2 && tableContent[row][2] != "") {
+                            document.write("<span id='unit_"+tableContent[row][2]+"'></span>");
+                        }
+                        else {
+                            document.write(tableContent[row][col]);  
+                        }
                     }
+                    document.write("</td>");
                 }
-                document.write("</td>");
+                document.write("</tr>");
             }
-            document.write("</tr>");
-        }
-        document.write("</tbody></table>");
-        document.write("</div>");
-        document.getElementById("idLMparameter").style.display = "none"; 
-    }
-    else {
-        if(isBackendConnected(activeIndex)) {
-            if(indexChanged) {
-                var nbCheckbox = 0;
-                for(var i=0;i<4;i++) {
-                    document.getElementById("idCBsetActive"+i).disabled = false;
-                    if(getMBregister(activeIndex,"configSet"+(i+1)).value & (1 << activeConfigBIT)) {
-                        document.getElementById("idCBsetActive"+i).checked = true; 
-                        nbCheckbox++;
-                    }
-                    else {
-                        document.getElementById("idCBsetActive"+i).checked = false; 
-                    }
-                }
-                if(nbCheckbox == 0) {
-                    document.getElementById("idCBsetActive0").checked = true; 
-                }
-
-                for(var row=0;row<maxRow;row++) {
-                    var colType = tableContent[row][0];
-                    for(var i=0;i<4;i++) {
-                        if(colType == "text" && tableContent[row][2] != "") {
-                            var id = tableContent[row][2]+i;
-                            var regName = tableContent[row][2] + (i+1);
-                            document.getElementById(id).value  = getMBregister(activeIndex,regName).value;
-
-                            if(i == 0) {
-                                addHTML("unit_" + tableContent[row][2],"["+getMBregister(activeIndex,regName).symbol+"]"); 
-                            }
-                        }
-
-                        if(colType == "checkbox" && tableContent[row][2] != "idCBsetActive" && tableContent[row][2] != "") {
-                            var bit = parseInt(tableContent[row][3+i]);
-                            var id = tableContent[row][2]+i.toString()+bit.toString();
-                            var regName = tableContent[row][2] + (i+1);
-                            var regValue = getMBregister(activeIndex,regName).value;
-                            if(regValue & (1 << bit)) {
-                                document.getElementById(id).checked = true; 
-                            }
-                            else {
-                                document.getElementById(id).checked = false; 
-                            }
-                        }
-
-                    }
-                }  
+            if(level == "US-ENG") {
+                document.write("<tr><td colspan='2'>"+lng.degas_cycle_time[LNG] +"</td><td><input type='text' id='par_DegasCycleTime'  class='LMparam' value='0'></input></td><td></td><td></td></tr>");
+                document.write("<tr><td colspan='2'>"+lng.degas_time[LNG] +"</td><td><input type='text' id='par_DegasTime'  class='LMparam' value='0'></input></td><td></td><td></td></tr>");
+                document.write("<tr><td colspan='2'>"+lng.degas_cycle_count[LNG] +"</td><td><input type='text' id='par_DegasCycleCount'  class='LMparam' value='0'></input></td><td></td><td></td></tr>");
                 
-            }
+                document.write("<tr><td colspan='2'>"+lng.voltage_meas_range[LNG] +"</td>");
+                document.write("<td><select id='iduRangeSet' class=paramSelect><option value=0>33V</option><option value=1>95V</option><option value=2>390V</option><option value=3>450V</option></select></td><td></td><td></td></tr>");
+                document.write("<tr><td colspan='2'>"+lng.current_meas_range[LNG] +"</td>");
+                document.write("<td><select id='idiRangeSet' class=paramSelect><option value=0>10A</option><option value=1>20A</option><option value=2>30A</option><option value=3>40A</option></select></td><td></td><td></td></tr>");
+            }   
+
+            document.write("</tbody></table>");
+            document.write("</div>");
+            document.getElementById("idLMparameter").style.display = "none"; 
+
+
         }
         else {
+            if(isBackendConnected(activeIndex)) {
+
+                if(indexChanged) {
+                    for(var i=0;i<4;i++) {
+                        document.getElementById("idCBsetActive"+i).disabled = false;
+                        if(parameterCheckboxLast & (1 << i)){
+                            document.getElementById("idCBsetActive"+i).checked = true; 
+                        }
+                    }
+                }
+                
+                if(refreshAlldone || parameterInit == false) {
+                    parameterInit = true;
+                    var nbCheckbox = 0;
+                    parameterCheckboxLast = 0;
+                    for(var i=0;i<4;i++) {
+                        document.getElementById("idCBsetActive"+i).disabled = false; 
+                        if(getMBregister(activeIndex,"configSet"+(i+1)).value & (1 << activeConfigBIT)) {
+                            document.getElementById("idCBsetActive"+i).checked = true; 
+                            nbCheckbox++;
+                            parameterCheckboxLast |= (1 << i);
+                        }
+                        else {
+                            document.getElementById("idCBsetActive"+i).checked = false; 
+                        }
+                    }
+                    if(nbCheckbox == 0) {
+                        document.getElementById("idCBsetActive0").checked = true; 
+                        parameterCheckboxLast = 1;
+                    }
+                    for(var row=0;row<maxRow;row++) {
+                        var colType = tableContent[row][0];
+                        for(var i=0;i<4;i++) {
+                            if(colType == "text" && tableContent[row][2] != "") {
+                                var id = tableContent[row][2]+i;
+                                var regName = tableContent[row][2] + (i+1);
+                                document.getElementById(id).value  = getMBregister(activeIndex,regName).value;
+
+                                if(i == 0) {
+                                    addHTML("unit_" + tableContent[row][2],"["+getMBregister(activeIndex,regName).symbol+"]"); 
+                                }
+                            }
+
+                            if(colType == "checkbox" && tableContent[row][2] != "idCBsetActive" && tableContent[row][2] != "") {
+                                var bit = parseInt(tableContent[row][3+i]);
+                                var id = tableContent[row][2]+i.toString()+bit.toString();
+                                var regName = tableContent[row][2] + (i+1);
+                                var regValue = getMBregister(activeIndex,regName).value;
+                                if(regValue & (1 << bit)) {
+                                    document.getElementById(id).checked = true; 
+                                }
+                                else {
+                                    document.getElementById(id).checked = false; 
+                                }
+                            }
+
+                        }
+                    }  
+                    if(level == "US-ENG") {
+                        document.getElementById("par_DegasCycleTime").value = getMBregister(activeIndex,"degasCycleTime").value;
+                        document.getElementById("par_DegasTime").value = getMBregister(activeIndex,"degasTime").value;
+                        document.getElementById("par_DegasCycleCount").value = getMBregister(activeIndex,"degasCycleCount").value;
+                        
+                        fwOptions = getMBregister(activeIndex,"fwOptions").value;
+                        document.getElementById("iduRangeSet").value = fwOptions & 0x03;
+                        document.getElementById("idiRangeSet").value = (fwOptions >> 2) & 0x03;
+                    }
+                }
+                if(level == "US-ENG") {
+                    document.getElementById("par_DegasCycleTime").disabled = false;
+                    document.getElementById("par_DegasTime").disabled = false;
+                    document.getElementById("par_DegasCycleCount").disabled = false;
+                    document.getElementById("iduRangeSet").disabled = false;
+                    document.getElementById("idiRangeSet").disabled = false;
+                }
+            }
+            else {
+                for(var i=0;i<4;i++) {
+                    document.getElementById("idCBsetActive"+i).checked = false; 
+                    document.getElementById("idCBsetActive"+i).disabled = true;
+                }
+                if(level == "US-ENG") {
+                    document.getElementById("par_DegasCycleTime").disabled = true;
+                    document.getElementById("par_DegasTime").disabled = true;
+                    document.getElementById("par_DegasCycleCount").disabled = true;
+                    document.getElementById("iduRangeSet").disabled = true;
+                    document.getElementById("idiRangeSet").disabled = true;
+                }
+            }
+        }
+
+        for(var row=0;row<maxRow;row++) {
+            var colType = tableContent[row][0];
             for(var i=0;i<4;i++) {
-                document.getElementById("idCBsetActive"+i).checked = false; 
-                document.getElementById("idCBsetActive"+i).disabled = true;
+                id = "idCBsetActive"+i;
+                var setEnabled = false;
+                if(document.getElementById(id)) {
+                    if(document.getElementById(id).checked) {
+                        setEnabled = true;
+                    }
+                }
+
+                if(colType == "text") {
+                    id = tableContent[row][2]+i;
+                    if(document.getElementById(id)) {
+                        document.getElementById(id).disabled = !setEnabled;
+                    }
+                    
+                }
+                if(colType == "checkbox" && tableContent[row][2] != "idCBsetActive" && tableContent[row][2] != "") {
+                    var bit = parseInt(tableContent[row][3+i]);
+                    var id = tableContent[row][2]+i.toString()+bit.toString();
+                    if(document.getElementById(id)) {
+                        document.getElementById(id).disabled = !setEnabled;
+                    }
+
+                }
+            } 
+
+        }
+    }
+
+}
+
+
+function limitParameter() {
+    
+    if(isBackendConnected(activeIndex)) {
+        if(userLevel == "ENG" || userLevel == "US-ENG") {
+            var arrID = ["powerRangeSet","powerSet", "frqMinSet","frqMaxSet","phaseSet","frqSweepShapeSet","frqSweepModFrqSet","frqSweepRangeSet"];
+
+            for(var i=0;i<4;i++) {
+                for(var k=0;k<arrID.length;k++) {
+                    checkParameterLimit(arrID[k]+(i),arrID[k]+(i+1));
+                }
+
+                var id = "frqMinSet"+i;
+                if(document.getElementById(id).disabled == false) {
+                    var min = document.getElementById("frqMinSet"+i).value;
+                    var max = document.getElementById("frqMaxSet"+i).value;
+                    if(min > max) {
+                        document.getElementById("frqMinSet"+i).value = max;
+                    }
+                }
             }
         }
     }
 
-    for(var row=0;row<maxRow;row++) {
-        var colType = tableContent[row][0];
-        for(var i=0;i<4;i++) {
-            id = "idCBsetActive"+i;
-            var setEnabled = false;
-            if(document.getElementById(id)) {
-                if(document.getElementById(id).checked) {
-                    setEnabled = true;
-                }
-            }
+}
 
-            if(colType == "text") {
-                id = tableContent[row][2]+i;
-                if(document.getElementById(id)) {
-                    document.getElementById(id).disabled = !setEnabled;
-                }
-                
-            }
-            if(colType == "checkbox" && tableContent[row][2] != "idCBsetActive" && tableContent[row][2] != "") {
-                var bit = parseInt(tableContent[row][3+i]);
-                var id = tableContent[row][2]+i.toString()+bit.toString();
-                if(document.getElementById(id)) {
-                    document.getElementById(id).disabled = !setEnabled;
-                }
-
-            }
-        } 
-
+function checkParameterLimit(id,regname) {
+    var min = getMBregister(activeIndex,regname).min;
+    var max = getMBregister(activeIndex,regname).max;
+    if(document.getElementById(id)) {
+        var value = document.getElementById(id).value;
+        if(value < min) {
+            document.getElementById(id).value = min;
+        }
+        if(value > max) {
+            document.getElementById(id).value = max;
+        }
     }
-
 
 }
 
@@ -917,33 +1045,38 @@ function updateExtMonitorInfo(index) {
 }
 
 function writeMonitorExtended(level,init) {
-    if(init == "init") {
-        document.write("<div id='idExtMonitor' class='extMonitor'>");
-        document.write("<h3 class='contentHeader'><span id='extMonitorActiveName'>"+lng.settings[LNG] +"</span></h3>");
-        document.write("<table id='idExtMonTable' style='width:100%'><colgroup><col style='width:33%'><col style='width:33%'><col style='width:33%'></colgroup><tbody>");
-        document.write("<tr><td>");
+
+    level = check_access(level);
+    if(level == "ENG" || level == "US-ENG") {
+
+        if(init == "init") {
+            document.write("<div id='idExtMonitor' class='extMonitor'>");
+            document.write("<h3 class='contentHeader'><span id='extMonitorActiveName'>"+lng.settings[LNG] +"</span></h3>");
+            document.write("<table id='idExtMonTable' style='width:100%'><colgroup><col style='width:33%'><col style='width:33%'><col style='width:33%'></colgroup><tbody>");
+            document.write("<tr><td>");
+                extMonitorPower(init);
+                extMonitorFrequency(init);
+            document.write("</td><td>");
+                extMonitorGeneratorInfo(init);
+                extMonitorElectricalData(init);
+                if(level == "US-ENG") {
+                    extMonitorTemperatures(init);
+                }
+            document.write("</td><td>");
+                extMonitorStatusConfig(init,level);
+            document.write("</td></tr></tbody></table>");
+            document.write("</div>");
+            document.getElementById("idExtMonitor").style.display = "none";
+        }
+        else {
             extMonitorPower(init);
             extMonitorFrequency(init);
-        document.write("</td><td>");
             extMonitorGeneratorInfo(init);
             extMonitorElectricalData(init);
+            extMonitorStatusConfig(init,level);
             if(level == "US-ENG") {
                 extMonitorTemperatures(init);
             }
-        document.write("</td><td>");
-            extMonitorStatusConfig(init,level);
-        document.write("</td></tr></tbody></table>");
-        document.write("</div>");
-        document.getElementById("idExtMonitor").style.display = "none";
-    }
-    else {
-        extMonitorPower(init);
-        extMonitorFrequency(init);
-        extMonitorGeneratorInfo(init);
-        extMonitorElectricalData(init);
-        extMonitorStatusConfig(init,level);
-        if(level == "US-ENG") {
-            extMonitorTemperatures(init);
         }
     }
 }
@@ -1054,10 +1187,9 @@ function extMonitorStatusConfig(init,level) {
         document.write("<input id='btFrq3' type='button' class='btBitOFF' value='4' onclick="+"changeBitState(this.id)"+"></input></td></tr>");
 
         document.write("<tr><td>"+lng.degas[LNG] +"</td><td><input id='btStatusConfig_Degas' type='button' class='btOFF' value='"+lng.off[LNG] +"' onclick="+"changeButtonState(this.id,'"+lng.on[LNG] +"','"+lng.off[LNG] +"')"+"></input></td></tr>");
-        
-        document.write("<tr><td>"+lng.degas_cycle_time[LNG] +"</td><td><input type='text' id='par_DegasCycleTime'  class='LMparam' value='0'></input></td></tr>");
-        document.write("<tr><td>"+lng.degas_time[LNG] +"</td><td><input type='text' id='par_DegasTime'  class='LMparam' value='0'></input></td></tr>");
-        document.write("<tr><td>"+lng.degas_cycle_count[LNG] +"</td><td><input type='text' id='par_DegasCycleCount'  class='LMparam' value='0'></input></td></tr>");
+         document.write("<tr><td>"+lng.degas_cycle_time[LNG] +"</td><td><span id='idDegasCycleTime'>-</span></td></tr>");
+        document.write("<tr><td>"+lng.degas_time[LNG] +"</td><td><span id='idDegasTime'>-</span></td></tr>");
+        document.write("<tr><td>"+lng.degas_cycle_count[LNG] +"</td><td><span id='idDegasCycleCount'>-</span></td></tr>");
 
         document.write("<tr><td>"+lng.freq_sweep[LNG] +"</td><td><span id='idFreqSweep'>-</span></td></tr>");
         document.write("<tr><td>"+lng.ampl_sweep[LNG] +"</td><td><span id='idAmplSweep'>-</span></td></tr>");
@@ -1068,16 +1200,12 @@ function extMonitorStatusConfig(init,level) {
         document.write("<tr><td>"+lng.settling_status[LNG] +"</td><td><span id='idSettling'>-</span></td></tr>");
 
         if(level == "US-ENG") {
-            document.write("<tr><td>"+lng.voltage_meas_range[LNG] +"</td>");
-            document.write("<td><select id='iduRangeSet' class=paramSelect><option value=0>33V</option><option value=1>95V</option><option value=2>390V</option><option value=3>450V</option></select></tr>");
-            document.write("<tr><td>"+lng.current_meas_range[LNG] +"</td>");
-            document.write("<td><select id='idiRangeSet' class=paramSelect><option value=0>10A</option><option value=1>20A</option><option value=2>30A</option><option value=3>40A</option></select></tr>");
             document.write("<tr><td>"+lng.save_operation_point[LNG] +"</td><td><input id='btSaveOperationPoint' type='button' class='btOFF' value='"+lng.off[LNG] +"' onclick="+"changeButtonState(this.id,'"+lng.on[LNG] +"','"+lng.off[LNG] +"')"+"></input></td></tr>");
             document.write("<tr><td>"+lng.interface[LNG] +"</td>");
             document.write("<td><select id='idComSelect' class=paramSelect><option value=0>AUTO</option><option value=1>DCM</option><option value=2>RMT</option><option value=3>ON_OFF</option></select></tr>");
         }
 
-        document.write("<tr><td><input id='btReadGenerator' type='button' class='btnCounterReset' onclick='read_generator()' value='"+lng.read[LNG]+"'></input></td><td><input id='btSaveGenerator' type='button' class='btnCounterReset' onclick='save_generator_all()' value='"+lng.save[LNG]+"'></input></td></tr>");
+        document.write("<tr><td><input id='btReadGenerator' type='button' class='btnCounterReset' onclick='read_generator()' value='"+lng.read[LNG]+"'></input>&nbsp;<input id='btResetGenerator' type='button' class='btnCounterReset' onclick='reset_generator()' value='"+lng.reset[LNG]+"'></input></td><td><input id='btSaveGenerator' type='button' class='btnCounterReset' onclick='save_generator_all()' value='"+lng.save[LNG]+"'></input></td></tr>");
         
         document.write("</tbody></table>")
         document.write("<div style='width:300px;height:0px'></div>");
@@ -1092,27 +1220,28 @@ function extMonitorStatusConfig(init,level) {
         if(isBackendConnected(activeIndex)) {
             control0 = getMBregister(activeIndex,"control0").value;
             status0 = getMBregister(activeIndex,"status0").value;
-            if(indexChanged) {
-                //if(setButtonState("btStatusConfig_USpower",control0 & (1 << 0),lng.start[LNG],lng.stop[LNG])) {
-                    //markingChanges[activeIndex] = 1; //state has changed
-                //}
-                //if(setButtonState("btStatusConfig_Degas",control0 & (1 << 7),lng.on[LNG],lng.off[LNG])) {
-                    //markingChanges[activeIndex] = 1; //state has changed
-                //}
-                //setFreqSelect((status0 >> 1) & 0x3);
-                document.getElementById("par_DegasCycleTime").value = getMBregister(activeIndex,"degasCycleTime").value;
-                document.getElementById("par_DegasTime").value = getMBregister(activeIndex,"degasTime").value;
-                document.getElementById("par_DegasCycleCount").value = getMBregister(activeIndex,"degasCycleCount").value;
 
+            if(refreshAlldone) {
+                if(setButtonState("btStatusConfig_USpower",control0 & (1 << 0),lng.start[LNG],lng.stop[LNG])) {
+                    //markingChanges[activeIndex] = 1; //state has changed
+                }
+                if(setButtonState("btStatusConfig_Degas",control0 & (1 << 7),lng.on[LNG],lng.off[LNG])) {
+                    //markingChanges[activeIndex] = 1; //state has changed
+                }
+            }
+
+            if(indexChanged) {
+         
                 if(level == "US-ENG") {
-                    fwOptions = getMBregister(activeIndex,"fwOptions").value;
-                    document.getElementById("iduRangeSet").value = fwOptions & 0x03;
-                    document.getElementById("idiRangeSet").value = (fwOptions >> 2) & 0x03;
                     setButtonState("btSaveOperationPoint",fwOptions & (1 << 4),lng.on[LNG],lng.off[LNG]);
                     document.getElementById("idComSelect").value = (fwOptions >> 6) & 0x03; 
                 }
 
             }
+
+            addHTML("idDegasCycleTime",getMBregister(activeIndex,"degasCycleTime").value);
+            addHTML("idDegasTime",getMBregister(activeIndex,"degasTime").value);
+            addHTML("idDegasCycleCount",getMBregister(activeIndex,"degasCycleCount").value);
             
             if(status0 & (1 << 5)) { addHTML("idFreqSweep", lng.on[LNG]); } else { addHTML("idFreqSweep", lng.off[LNG]);}
             if(status0 & (1 << 6)) { addHTML("idAmplSweep", lng.on[LNG]); } else { addHTML("idAmplSweep", lng.off[LNG]);}      
@@ -1126,24 +1255,21 @@ function extMonitorStatusConfig(init,level) {
 
             document.getElementById("btStatusConfig_USpower").disabled = false;
             document.getElementById("btStatusConfig_Degas").disabled = false;
-            document.getElementById("par_DegasCycleTime").disabled = false;
-            document.getElementById("par_DegasTime").disabled = false;
-            document.getElementById("par_DegasCycleCount").disabled = false;
-            //document.getElementById("idFreqSelect").disabled = false;
             document.getElementById("btReadGenerator").disabled = false;
             document.getElementById("btSaveGenerator").disabled = false;
 
             updateFreqSelection();
 
             if(level == "US-ENG") {
-                document.getElementById("iduRangeSet").disabled = false;
-                document.getElementById("idiRangeSet").disabled = false;
                 document.getElementById("btSaveOperationPoint").disabled = false;
                 document.getElementById("idComSelect").disabled = false;
             }
 
         }
         else {
+            addHTML("idDegasCycleTime", "-");
+            addHTML("idDegasTime", "-");  
+            addHTML("idDegasCycleCount", "-"); 
             addHTML("idFreqSweep", "-");
             addHTML("idAmplSweep", "-");  
             addHTML("idResonance", "-");  
@@ -1154,10 +1280,6 @@ function extMonitorStatusConfig(init,level) {
             
             document.getElementById("btStatusConfig_USpower").disabled = true;
             document.getElementById("btStatusConfig_Degas").disabled = true;
-            document.getElementById("par_DegasCycleTime").disabled = true;
-            document.getElementById("par_DegasTime").disabled = true;
-            document.getElementById("par_DegasCycleCount").disabled = true;
-            //document.getElementById("idFreqSelect").disabled = true;
             for(var i=0;i<4;i++) {
                 document.getElementById("btFrq"+i).disabled = true; 
                 setBitState("btFrq"+i,0);
@@ -1167,8 +1289,6 @@ function extMonitorStatusConfig(init,level) {
             document.getElementById("btSaveGenerator").disabled = true;
 
             if(level == "US-ENG") {
-                document.getElementById("iduRangeSet").disabled = true;
-                document.getElementById("idiRangeSet").disabled = true;
                 document.getElementById("btSaveOperationPoint").disabled = true;
                 document.getElementById("idComSelect").disabled = true;
             }
@@ -1496,6 +1616,7 @@ function setBitState(id,value) {
 }
 
 function writeCounterOverview(level,init) {
+    level = check_access(level);
     if(level == "ENG" || level == "US-ENG") {
 
         var tableContent = [
