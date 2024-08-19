@@ -1480,7 +1480,7 @@ function extMonitorTemperatures(init) {
             addHTML("idTempQ2", getMBregister(activeIndex,"temperaturQ2").formatted.trim());
             addHTML("idTempQ3", getMBregister(activeIndex,"temperaturQ3").formatted.trim());
             addHTML("idTempQ4", getMBregister(activeIndex,"temperaturQ4").formatted.trim());
-            var fanActive = parseInt(getMBregister(activeIndex,"status0").value) & (1 << 6);
+            var fanActive = parseInt(getMBregister(activeIndex,"status1").value) & (1 << 6);
             if(fanActive) {
                 addHTML("idFan", lng.on[LNG]);
             }
