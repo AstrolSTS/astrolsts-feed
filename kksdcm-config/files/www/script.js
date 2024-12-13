@@ -12,7 +12,10 @@ var WEB_OFFLINE = 0;
 var MAX_GENERATORS = 16;
 var generatorComOK    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 var generatorFound    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-var markingChanges    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+var markingChanges    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = setNone, 1 = setAll, 2 = setControl
+const setNone = 0;
+const setAll = 1;
+const setControl = 2;
 var COM_SCAN_TIME     = 10;
 var com_scan_cnt      = 0;
 var nb_commits        = 0;
@@ -128,7 +131,7 @@ function update_modbus_register() {
         if(markingChanges[i] && generatorEnabled[i]) {
             save_generator();
             //console.log("changes on: "+i);
-            markingChanges[i] = 0;
+            markingChanges[i] = setNone;
         } 
     }
 }
@@ -265,7 +268,12 @@ function save_generator() {
         if(isButtonState("btStatusConfig_Degas", lng.on[LNG])) { control0 |= (1 << 7); }
 
         //write_register("control1",1);       // errReset
-        commitGeneratorSettings = true;
+        if([activeIndex] == setControl) {
+            commitGeneratorSettings = false;
+        }
+        else {
+            commitGeneratorSettings = true;
+        }
 
         if(commitGeneratorSettings) {
             if(userLevel == "US-ENG") {
@@ -314,6 +322,9 @@ function save_generator() {
         }  
         else {
             write_register("control0",control0); 
+            write_register("targetPower",getMBregister(activeIndex,"powerSet"+actFreqSet).value);  
+            write_register("frqMin",getMBregister(activeIndex,"frqMinSet"+actFreqSet).value);  
+            write_register("frqMax",getMBregister(activeIndex,"frqMaxSet"+actFreqSet).value);  
         }  
         save_fw_options(true);
         commitGenerator = true;
@@ -1223,10 +1234,10 @@ function extMonitorStatusConfig(init,level) {
 
             if(refreshAlldone) {
                 if(setButtonState("btStatusConfig_USpower",control0 & (1 << 0),lng.start[LNG],lng.stop[LNG])) {
-                    //markingChanges[activeIndex] = 1; //state has changed
+                    //[activeIndex] = 1; //state has changed
                 }
                 if(setButtonState("btStatusConfig_Degas",control0 & (1 << 7),lng.on[LNG],lng.off[LNG])) {
-                    //markingChanges[activeIndex] = 1; //state has changed
+                    //[activeIndex] = 1; //state has changed
                 }
             }
 
@@ -1540,7 +1551,7 @@ function changeBitState(id) {
         if(isBackendConnected(activeIndex)) {
             // marking selected generator value has changed if connected only
             if(id == "btFrq0" || id == "btFrq1" || id == "btFrq2" || id == "btFrq3") {
-                markingChanges[activeIndex] = 1;
+                markingChanges[activeIndex] = setControl;
             }
         }
 
@@ -1565,7 +1576,7 @@ function changeButtonState(id,strON,strOFF) {
         if(isBackendConnected(activeIndex)) {
             // marking selected generator value has changed if connected only
             if(id == "btStatusConfig_USpower" || id == "btStatusConfig_Degas") {
-                markingChanges[activeIndex] = 1;
+                markingChanges[activeIndex] = setControl;
             }
         }
     }
