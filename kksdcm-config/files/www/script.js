@@ -19,6 +19,7 @@ const setControl = 2;
 var COM_SCAN_TIME     = 10;
 var com_scan_cnt      = 0;
 var nb_commits        = 0;
+var parameter_auto_refresh = 1;
 
 var generatorEnabled  = [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];      // 0 = disable, 1 = enable
 var generatorSimulate = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = constant values
@@ -140,8 +141,10 @@ function end_of_update() {
 
     if(refreshAlldone && userLevel != "USER") {
         indexChanged = true;
-        save_fw_options(false);
+        //console.log(mb_response[activeIndex]);
+        //console.log("Control0 [1]: "+getMBregister(activeIndex,"control0").value);
         writeMonitorExtended(userLevel,"update");
+        //console.log("refreshAlldone");
         writeLMparameter(userLevel,"update");
         refreshAlldone = false;
     }
@@ -152,6 +155,7 @@ function end_of_update() {
         commitGenerator = false;
         if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) { 
             if(activeIndex != 0) {
+                //console.log(mb_response[activeIndex]);
                 if(commitGeneratorSettings) {
                     commitGeneratorSettings == false;
                     setTimeout(function() { commit_register("configSet1","",22,true);  },     100);     // commit frequency set 1
@@ -159,17 +163,23 @@ function end_of_update() {
                     setTimeout(function() { commit_register("configSet3","",22,true);  },     300);     // commit frequency set 3
                     setTimeout(function() { commit_register("configSet4","",22,true);  },     400);     // commit frequency set 4
                     setTimeout(function() { commit_register("control0","",2,true); },         500);     // commit control registers
-                    setTimeout(function() { commit_register("degasCycleTime","",3,true); },   600);     // commit control registers
-                    setTimeout(function() { commit_register("operatingTime","",1,true); },   700);     
-                    setTimeout(function() { commit_register("cntPowerUp","",2,true); },   800);     
+                    setTimeout(function() { commit_register("degasCycleTime","",4,true); },   600);     // degas and fwOptions registers
+                    setTimeout(function() { commit_register("operatingTime","",1,true); },    700);     
+                    setTimeout(function() { commit_register("cntPowerUp","",2,true); },       800); 
+                    setTimeout(function() { save_fw_options(false);},                         900);     // clear save flag
                 }
                 else {
                     setTimeout(function() { commit_register("control0","",2,true); },         100);     // commit control registers
+                    setTimeout(function() { commit_register("fwOptions","",1,true); },        200);     // fwOptions register
+                    setTimeout(function() { save_fw_options(false);},                         300);     // clear save flag
                 }
+                //setTimeout(function() { read_generator()},                                   3000);     // read back all settings after write
+                
             }
             else {
                 //refreshAll = true;
             }
+            //console.log("Control0 [0]: "+getMBregister(activeIndex,"control0").value);
         }
     }
 
@@ -372,6 +382,7 @@ function commit_register(id,value,count,commit) {
                 else {
                     call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "commit": true}; 
                 }
+                mb_response[activeIndex][regidx].value = newValue;      // write into buffer
             }
             else {
                 nb_commits++;
@@ -380,6 +391,7 @@ function commit_register(id,value,count,commit) {
                 }
                 else {
                     call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "count": 1, "commit": commit};  
+                    mb_response[activeIndex][regidx].value = newValue;      // write into buffer
                 }
             }
             commit_call(call); 
@@ -388,25 +400,25 @@ function commit_register(id,value,count,commit) {
 }
 
 function save_fw_options(permanent) {
-    var fwOptions = 0;
+    var fwOptions = getMBregister(activeIndex,"fwOptions").value;
 
     if(userLevel == "US-ENG") {
+        fwOptions &= ~(0xFF);       // mask out bits before set
         fwOptions |= document.getElementById("iduRangeSet").value & 0x03;
         fwOptions |= (document.getElementById("idiRangeSet").value & 0x03) << 2;
-        if(isButtonState("btSaveOperationPoint", lng.on[LNG])) { fwOptions |= (1 << 4); }
+        if(isButtonState("btSaveOperationPoint", lng.on[LNG])) { fwOptions |= (1 << 5);}
+        if(permanent) { fwOptions |= (1 << 4); }                // save persistent          
         fwOptions |= (document.getElementById("idComSelect").value & 0x03) << 6;
     }
     else {
-        fwOptions = getMBregister(activeIndex,"fwOptions").value;
-    } 
-    if(permanent) {
-        fwOptions |= (1 << 4);      // save persistent   
-        write_register("fwOptions",fwOptions);
+        fwOptions &= ~(1 << 4);       // mask out save bit, keep all other bits
+        if(permanent) { fwOptions |= (1 << 4); }                // save persistent 
     }
-    else {
+    write_register("fwOptions",fwOptions);
+    if(permanent == false) {
         var fwOptionsAct = getMBregister(activeIndex,"fwOptions").value;
         if(fwOptionsAct & (1 << 4)) {       // is save flag set
-            commit_register("fwOptions",fwOptions,1,true);                  // clear save flag
+            commit_register("fwOptions",fwOptions,1,true);                  // clear save flag by direct commit
         }
     }
 }
@@ -811,6 +823,8 @@ function writeLMparameter(level,init) {
                 document.write("<td><select id='iduRangeSet' class=paramSelect><option value=0>33V</option><option value=1>95V</option><option value=2>390V</option><option value=3>450V</option></select></td><td></td><td></td></tr>");
                 document.write("<tr><td colspan='2'>"+lng.current_meas_range[LNG] +"</td>");
                 document.write("<td><select id='idiRangeSet' class=paramSelect><option value=0>10A</option><option value=1>20A</option><option value=2>30A</option><option value=3>40A</option></select></td><td></td><td></td></tr>");
+                document.write("<tr><td colspan='2'>"+lng.param_auto_refresh[LNG] +"</td>");
+                document.write("<td><input type='checkbox' id='idParam_auto_refresh' class='LMparamCheckbox' onclick=changeCheckboxState(this.id)></input></td><td></td><td></td></tr>");
             }   
 
             document.write("</tbody></table>");
@@ -831,7 +845,7 @@ function writeLMparameter(level,init) {
                     }
                 }
                 
-                if(refreshAlldone || parameterInit == false) {
+                if(refreshAlldone || parameterInit == false || (indexChanged && parameter_auto_refresh)) {
                     parameterInit = true;
                     var nbCheckbox = 0;
                     parameterCheckboxLast = 0;
@@ -886,6 +900,13 @@ function writeLMparameter(level,init) {
                         fwOptions = getMBregister(activeIndex,"fwOptions").value;
                         document.getElementById("iduRangeSet").value = fwOptions & 0x03;
                         document.getElementById("idiRangeSet").value = (fwOptions >> 2) & 0x03;
+                        document.getElementById("idComSelect").value = (fwOptions >> 6) & 0x03; 
+                        if(parameter_auto_refresh) {
+                            document.getElementById("idParam_auto_refresh").checked = true; 
+                        }
+                        else {
+                            document.getElementById("idParam_auto_refresh").checked = false; 
+                        }
                     }
                 }
                 if(level == "US-ENG") {
@@ -894,6 +915,7 @@ function writeLMparameter(level,init) {
                     document.getElementById("par_DegasCycleCount").disabled = false;
                     document.getElementById("iduRangeSet").disabled = false;
                     document.getElementById("idiRangeSet").disabled = false;
+                    document.getElementById("idParam_auto_refresh").disabled = false;
                 }
             }
             else {
@@ -907,6 +929,7 @@ function writeLMparameter(level,init) {
                     document.getElementById("par_DegasCycleCount").disabled = true;
                     document.getElementById("iduRangeSet").disabled = true;
                     document.getElementById("idiRangeSet").disabled = true;
+                    document.getElementById("idParam_auto_refresh").disabled = true;
                 }
             }
         }
@@ -938,7 +961,6 @@ function writeLMparameter(level,init) {
 
                 }
             } 
-
         }
     }
 
@@ -1128,8 +1150,10 @@ function extMonitorPower(init) {
             addHTML("idPGBarSetPower", getMBregister(activeIndex,"targetPower").formatted.trim());
             setProgBarValue("idPGBarValueSetPower",getMBregister(activeIndex,"targetPower").value);
             
-            addHTML("idPGBarPulseWidthPowerStage", getMBregister(activeIndex,"pulsWidthPowerState").formatted.trim());
-            setProgBarValue("idPGBarValuePulseWidthPowerStage",getMBregister(activeIndex,"pulsWidthPowerState").value);
+            var pulseWidth = getMBregister(activeIndex,"pulsWidthPowerState").value;
+            var pulseWithPercent = Math.round((pulseWidth * 100) / 255);
+            addHTML("idPGBarPulseWidthPowerStage", pulseWithPercent + " %");
+            setProgBarValue("idPGBarValuePulseWidthPowerStage",pulseWithPercent);
 
             addHTML("idPGBarActPowerPercent", getMBregister(activeIndex,"actualPower").formatted.trim());
             setProgBarValue("idPGBarValueActPowerPercent",getMBregister(activeIndex,"actualPower").value);
@@ -1231,8 +1255,10 @@ function extMonitorStatusConfig(init,level) {
         if(isBackendConnected(activeIndex)) {
             control0 = getMBregister(activeIndex,"control0").value;
             status0 = getMBregister(activeIndex,"status0").value;
+            fwOptions = getMBregister(activeIndex,"fwOptions").value;
+            //console.log("[2]"+control0);
 
-            if(refreshAlldone) {
+            if(/*refreshAlldone*/ indexChanged) {
                 if(setButtonState("btStatusConfig_USpower",control0 & (1 << 0),lng.start[LNG],lng.stop[LNG])) {
                     //[activeIndex] = 1; //state has changed
                 }
@@ -1244,7 +1270,7 @@ function extMonitorStatusConfig(init,level) {
             if(indexChanged) {
          
                 if(level == "US-ENG") {
-                    setButtonState("btSaveOperationPoint",fwOptions & (1 << 4),lng.on[LNG],lng.off[LNG]);
+                    setButtonState("btSaveOperationPoint",fwOptions & (1 << 5),lng.on[LNG],lng.off[LNG]);
                     document.getElementById("idComSelect").value = (fwOptions >> 6) & 0x03; 
                 }
 
@@ -1554,13 +1580,20 @@ function changeBitState(id) {
                 markingChanges[activeIndex] = setControl;
             }
         }
-
     }
-
-    
-
-
 }
+
+function changeCheckboxState(id) {
+    if(id == "idParam_auto_refresh") {
+        if(document.getElementById("idParam_auto_refresh").checked) {
+            parameter_auto_refresh = 1;
+        }
+        else {
+            parameter_auto_refresh = 0;
+        }
+    }
+}
+
 
 function changeButtonState(id,strON,strOFF) {
     var element = document.getElementById(id);
@@ -1814,6 +1847,8 @@ function updateConfigSet(id) {
         document.getElementById(id).checked = true;
     }
     writeLMparameter(userLevel,"parDisable");
+    //writeLMparameter(userLevel,"update");
+    
 }
 
 function isBackendConnected(genIndex) {
@@ -1834,8 +1869,8 @@ function getMBregister(genIndex,name) {
 
 function getVersionString(genIndex,major_minor, patch) {
     var ver_major,ver_minor,ver_patch;
-    ver_major = parseInt(getMBregister(genIndex,major_minor).formatted.trim() / 256);
-    ver_minor = parseInt(getMBregister(genIndex,major_minor).formatted.trim() % 256);
+    ver_major = parseInt(getMBregister(genIndex,major_minor).formatted.trim() % 256);   // LSB
+    ver_minor = parseInt(getMBregister(genIndex,major_minor).formatted.trim() / 256);   // MBS
     ver_patch = parseInt(getMBregister(genIndex,patch).formatted.trim());
     return "V "+ver_major+"."+ver_minor+"."+ver_patch;
 }
@@ -2038,6 +2073,8 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   current_meas_range:           ["Current measure range",           "Strommessbereich"],
   save_operation_point:         ["Save operation point",            "Arbeitspunkt speichern"],
   interface:                    ["COM Interface",                   "Komm. Schnittstelle"],
+  param_auto_refresh:           ["Parameter auto refresh",          "Autom. Aktual. Parameter"],
+  
   
   //----Error text, keep order
   error_0:                      ["no error",                        "kein Fehler"],
