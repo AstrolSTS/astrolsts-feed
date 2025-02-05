@@ -164,13 +164,18 @@ function end_of_update() {
             if(activeIndex != 0) {
                 if(commitGeneratorSettings) {
                     commitGeneratorSettings = false;
-                    setTimeout(function() { commit_register("configSet1","",11,true);  },     100);     // commit frequency set 1
-                    setTimeout(function() { commit_register("configSet2","",11,true);  },     200);     // commit frequency set 2
-                    setTimeout(function() { commit_register("configSet3","",11,true);  },     300);     // commit frequency set 3
-                    setTimeout(function() { commit_register("configSet4","",11,true);  },     400);     // commit frequency set 4
-                    setTimeout(function() { commit_register("control0","",2,true); },         500);     // commit control registers
-                    setTimeout(function() { commit_register("degasCycleTime","",4,true); },   600);     // degas and fwOptions registers
-                    setTimeout(function() { save_fw_options(false);},                         700);     // clear save flag
+                    if(isButtonState("btStatusConfig_USpower", lng.start[LNG])) {                           // generator is already running, update control register only
+                        setTimeout(function() { commit_register("control0","",10,true); },        100);     // commit all control registers
+                    }
+                    else {
+                        setTimeout(function() { commit_register("configSet1","",11,true);  },     100);     // commit frequency set 1
+                        setTimeout(function() { commit_register("configSet2","",11,true);  },     200);     // commit frequency set 2
+                        setTimeout(function() { commit_register("configSet3","",11,true);  },     300);     // commit frequency set 3
+                        setTimeout(function() { commit_register("configSet4","",11,true);  },     400);     // commit frequency set 4
+                        setTimeout(function() { commit_register("control0","",2,true); },         500);     // commit control registers
+                        setTimeout(function() { commit_register("degasCycleTime","",4,true); },   600);     // degas and fwOptions registers
+                        setTimeout(function() { save_fw_options(false);},                         700);     // clear save flag
+                    }
                 }
                 else if(commitGeneratorCounters) {
                     commitGeneratorCounters = false;
@@ -499,7 +504,7 @@ function resetCounterValue(id) {
         var cntIndex = 0;
         for(var i=0;i<regName.length;i++) {
             if(regName[i] != "") {
-                //write_register(regName[i],0);  // clear directly during commit
+                write_register(regName[i],0);  // clear directly during commit
                 genCounters[cntIndex++] = regName[i]; 
                 commitGenerator = true;
                 commitGeneratorCounters = true;
@@ -1127,6 +1132,7 @@ function writeMonitorExtended(level,init) {
             document.write("<tr><td>");
                 extMonitorPower(init);
                 extMonitorFrequency(init);
+                extMonitorPhase(init);
             document.write("</td><td>");
                 extMonitorGeneratorInfo(init);
                 extMonitorElectricalData(init);
@@ -1142,6 +1148,7 @@ function writeMonitorExtended(level,init) {
         else {
             extMonitorPower(init);
             extMonitorFrequency(init);
+            extMonitorPhase(init);
             extMonitorGeneratorInfo(init);
             extMonitorElectricalData(init);
             extMonitorStatusConfig(init,level);
@@ -1247,6 +1254,45 @@ function extMonitorFrequency(init) {
     }
 }
 
+function extMonitorPhase(init) {
+    if(init == "init")  {
+        document.write("<div class='extMonitorContent'>");
+        document.write("<h4 class='contentHeader'><span>"+lng.phase[LNG] +"</span></h4>");
+        document.write("<table id='extMonPhaseTable' style='width:100%'><colgroup><col style='width:33%'><col style='width:33%'><col style='width:33%'></colgroup><tbody>");
+        document.write("<tr><td></td><td>"+lng.actual[LNG] +"</td><td></td></tr>");
+        document.write("<tr><td><span id='idPhaseSetMin'>-90&#176;</span></td><td><span id='idActPhaseSlider'>-</span></td><td><span id='idPhaseSetMax'>+90&#176;</span></td></tr>");
+        document.write("</tbody></table>")
+        document.write("<div class='slidecontainer'><input type='range' disabled min='0' max='0' value='0' class='slider' id='sliderPhase' oninput="+"changeSliderValue(this.id,'idActPhaseSlider',false)"+"></div>");
+        document.write("<div style='width:400px;height:0px'></div>");
+        document.write("</div>");
+    }
+    else {
+        if(isBackendConnected(activeIndex)) {
+            var elem = document.getElementById("sliderPhase");
+            if(elem) {
+                elem.min = -90;
+                elem.max = 90;
+                elem.value = getMBregister(activeIndex,"actualPhase").value;                 
+                changeSliderValue('sliderPhase','idActPhaseSlider',false); 
+                addHTML("idPhaseSetMin", elem.min+" &#176;"); 
+                addHTML("idPhaseSetMax", "+"+elem.max+" &#176;"); 
+            }
+        }
+        else {
+            var elem = document.getElementById("sliderPhase");
+            if(elem) {
+                elem.min = -90;
+                elem.max = 90;
+                elem.value = 0;
+                addHTML("idPhaseSetMin", '-90 &#176;'); 
+                addHTML("idPhaseSetMax", '+90 &#176;'); 
+                addHTML("idActPhase", '-'); 
+                
+            }
+        }
+    }
+}
+
 function extMonitorStatusConfig(init,level) {
     if(init == "init") {
         document.write("<div class='extMonitorContent'>");
@@ -1337,6 +1383,13 @@ function extMonitorStatusConfig(init,level) {
             if(level == "US-ENG") {
                 document.getElementById("btSaveOperationPoint").disabled = false;
                 document.getElementById("idComSelect").disabled = false;
+            }
+
+            if(isButtonState("btStatusConfig_USpower", lng.start[LNG])) { 
+                setButtonText("btSaveGenerator",lng.update[LNG]);
+            }
+            else {
+                setButtonText("btSaveGenerator",lng.save[LNG]);
             }
 
         }
@@ -1673,6 +1726,20 @@ function setButtonState(id,value,strON,strOFF) {
             return 1;       // changed
         }
     }
+}
+
+function setButtonText(id,str) {
+    var element = document.getElementById(id);
+    if(element) {
+        if(element.value === str) {
+            return 0;       // already correct set
+        }
+        else {
+            element.value = str;
+            return 1;
+        }
+    }
+    return 0;
 }
 
 function setBitState(id,value) {
@@ -2025,6 +2092,7 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   frequency_short:              ["Freq",                            "Freq"],
   set_min:                      ["Set min",                         "Minimal"],
   set_max:                      ["Set max",                         "Maximum"],
+  phase:                        ["Phase",                           "Phase"],
   actual:                       ["Actual",                          "Aktuell"],
   status:                       ["Status",                          "Status"],
   config:                       ["Config",                          "Konfiguration"],
@@ -2096,6 +2164,7 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   mask:                         ["Mask",                            "Maske"],
   gateway:                      ["Gateway",                         "Gateway"],
   save:                         ["Save",                            "Speichern"],
+  update:                       ["Update",                          "Aktualisieren"],
   software_update:              ["Software Update",                 "Software Update"],
   information:                  ["Information",                     "Information"],
   msg_manu_info:                ["Additional manufacture information","Zus&auml;tzliche Herstellerinformationen"],
@@ -2110,7 +2179,7 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   current_meas_range:           ["Current measure range",           "Strommessbereich"],
   save_operation_point:         ["Save operation point",            "Arbeitspunkt speichern"],
   interface:                    ["COM Interface",                   "Komm. Schnittstelle"],
-  param_auto_refresh:           ["Parameter auto refresh",          "Autom. Aktual. Parameter"],
+  param_auto_refresh:           ["Parameter auto refresh",          "Autom. Param-Aktual."],
   
   
   //----Error text, keep order
