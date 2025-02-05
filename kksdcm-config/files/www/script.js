@@ -7,6 +7,8 @@ var refreshAll = false;
 var refreshAlldone = false;
 var commitGenerator = false;
 var commitGeneratorSettings = false;
+var commitGeneratorCounters = false;
+var genCounters = [];
 var activeConfigBIT = 15;
 var WEB_OFFLINE = 0;
 var MAX_GENERATORS = 16;
@@ -67,8 +69,10 @@ function refreshRegisterList() {
                         fetch_generator(k, "all");
                     }
                     else {
-                        fetch_generator(k, "inputs");
+                        fetch_generator(k,"inputs");
                         fetch_generator(k,"pn_controls");
+                        fetch_generator(k,"cnt_global");
+                        fetch_generator(k,"cnt_set_"+getFreqSelect());
                     }
                 }
                 else if(generatorSimulate[k] == 1) {
@@ -90,6 +94,12 @@ function fetch_generator(genIndex,mode) {
         case "inputs":      call = { "generator": genIndex, "cmd": "read", "index": 0, "count": 32, "refresh":true }; break;
         case "controls":    call = { "generator": genIndex, "cmd": "read", "index": 32, "count": 22, "refresh":true }; break;
         case "pn_controls": call = { "generator": genIndex, "cmd": "read", "index": 32, "count": 7, "refresh":false }; break;
+        case "cnt_global":  call = { "generator": genIndex, "cmd": "read", "index": 43, "count": 4, "refresh":true }; break;
+        case "cnt_set_1":   call = { "generator": genIndex, "cmd": "read", "index": 58, "count": 11, "refresh":true }; break;
+        case "cnt_set_2":   call = { "generator": genIndex, "cmd": "read", "index": 80, "count": 11, "refresh":true }; break;
+        case "cnt_set_3":   call = { "generator": genIndex, "cmd": "read", "index": 102, "count": 11, "refresh":true }; break;
+        case "cnt_set_4":   call = { "generator": genIndex, "cmd": "read", "index": 124, "count": 11, "refresh":true }; break;
+        
     }
     if(generatorComOK[genIndex]) {
         apiCall(call, 10000, true, "coreregs").done(function(response) {
@@ -141,10 +151,7 @@ function end_of_update() {
 
     if(refreshAlldone && userLevel != "USER") {
         indexChanged = true;
-        //console.log(mb_response[activeIndex]);
-        //console.log("Control0 [1]: "+getMBregister(activeIndex,"control0").value);
         writeMonitorExtended(userLevel,"update");
-        //console.log("refreshAlldone");
         writeLMparameter(userLevel,"update");
         refreshAlldone = false;
     }
@@ -155,31 +162,40 @@ function end_of_update() {
         commitGenerator = false;
         if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) { 
             if(activeIndex != 0) {
-                //console.log(mb_response[activeIndex]);
                 if(commitGeneratorSettings) {
-                    commitGeneratorSettings == false;
-                    setTimeout(function() { commit_register("configSet1","",22,true);  },     100);     // commit frequency set 1
-                    setTimeout(function() { commit_register("configSet2","",22,true);  },     200);     // commit frequency set 2
-                    setTimeout(function() { commit_register("configSet3","",22,true);  },     300);     // commit frequency set 3
-                    setTimeout(function() { commit_register("configSet4","",22,true);  },     400);     // commit frequency set 4
+                    commitGeneratorSettings = false;
+                    setTimeout(function() { commit_register("configSet1","",11,true);  },     100);     // commit frequency set 1
+                    setTimeout(function() { commit_register("configSet2","",11,true);  },     200);     // commit frequency set 2
+                    setTimeout(function() { commit_register("configSet3","",11,true);  },     300);     // commit frequency set 3
+                    setTimeout(function() { commit_register("configSet4","",11,true);  },     400);     // commit frequency set 4
                     setTimeout(function() { commit_register("control0","",2,true); },         500);     // commit control registers
                     setTimeout(function() { commit_register("degasCycleTime","",4,true); },   600);     // degas and fwOptions registers
-                    setTimeout(function() { commit_register("operatingTime","",1,true); },    700);     
-                    setTimeout(function() { commit_register("cntPowerUp","",2,true); },       800); 
-                    setTimeout(function() { save_fw_options(false);},                         900);     // clear save flag
+                    setTimeout(function() { save_fw_options(false);},                         700);     // clear save flag
+                }
+                else if(commitGeneratorCounters) {
+                    commitGeneratorCounters = false;
+                    if(genCounters.length == 1) {
+                        setTimeout(function() { commit_register(genCounters[0],0,1,true); },     100);             // clear single counter register
+                    }
+                    else if(genCounters.length == 5) {      // max. temperature
+                        setTimeout(function() { commit_register("tempMaxQ1Set"+getFreqSelect(),[0,0,0,0,0],5,true);}, 100); 
+                    }
+                    else {      // clear all
+                        setTimeout(function() { commit_register("tempMaxQ1Set"+getFreqSelect(),[0,0,0,0,0,0,0,0,0,0,0],11,true);}, 100);     // commit frequency set counters
+                        setTimeout(function() { commit_register("operatingTime",0,1,true); },     200);     
+                        setTimeout(function() { commit_register("cntPowerUp",[0,0],2,true); },     300); 
+                    }
                 }
                 else {
-                    setTimeout(function() { commit_register("control0","",2,true); },         100);     // commit control registers
-                    setTimeout(function() { commit_register("fwOptions","",1,true); },        200);     // fwOptions register
-                    setTimeout(function() { save_fw_options(false);},                         300);     // clear save flag
+                    setTimeout(function() { commit_register("control0","",2,true); },          100);     // commit control registers
+                    setTimeout(function() { commit_register("fwOptions","",1,true); },         200);     // fwOptions register
+                    setTimeout(function() { save_fw_options(false);},                          300);     // clear save flag
                 }
-                //setTimeout(function() { read_generator()},                                   3000);     // read back all settings after write
                 
             }
             else {
                 //refreshAll = true;
             }
-            //console.log("Control0 [0]: "+getMBregister(activeIndex,"control0").value);
         }
     }
 
@@ -261,6 +277,7 @@ function reset_generator() {
         write_register("control0",control0); 
         write_register("control1",1);           // errReset
         commitGenerator = true;
+        markingChanges[activeIndex] = setControl;
     }
 }
 
@@ -278,7 +295,7 @@ function save_generator() {
         if(isButtonState("btStatusConfig_Degas", lng.on[LNG])) { control0 |= (1 << 7); }
 
         //write_register("control1",1);       // errReset
-        if([activeIndex] == setControl) {
+        if(markingChanges[activeIndex] == setControl) {
             commitGeneratorSettings = false;
         }
         else {
@@ -329,12 +346,15 @@ function save_generator() {
             write_register("targetPower",document.getElementById("powerSet"+(actFreqSet-1)).value);  
             write_register("frqMin",document.getElementById("frqMinSet"+(actFreqSet-1)).value);  
             write_register("frqMax",document.getElementById("frqMaxSet"+(actFreqSet-1)).value);  
+            write_register("powerRange",document.getElementById("powerRangeSet"+(actFreqSet-1)).value);  
+            
         }  
         else {
             write_register("control0",control0); 
             write_register("targetPower",getMBregister(activeIndex,"powerSet"+actFreqSet).value);  
             write_register("frqMin",getMBregister(activeIndex,"frqMinSet"+actFreqSet).value);  
             write_register("frqMax",getMBregister(activeIndex,"frqMaxSet"+actFreqSet).value);  
+            write_register("powerRange",document.getElementById("powerRangeSet"+(actFreqSet-1)).value);  
         }  
         save_fw_options(true);
         commitGenerator = true;
@@ -368,12 +388,18 @@ function commit_register(id,value,count,commit) {
             let regidx = getMBregister(activeIndex,id).regidx;
             let doCommitOnly = false;
             let newValue = 0;
+            let arrNewValue = [];
             let call;
             if(value === "") {
                 doCommitOnly = true;
             }
             else {
-                newValue = value.toString();
+                if(count == 1) {
+                    newValue = value.toString();
+                }
+                else {
+                    arrNewValue = value;
+                }
             }
             if(commit == false) {
                 if(activeIndex != 0) {
@@ -390,8 +416,17 @@ function commit_register(id,value,count,commit) {
                     call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "count": count, "commit": commit};  
                 }
                 else {
-                    call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "count": 1, "commit": commit};  
-                    mb_response[activeIndex][regidx].value = newValue;      // write into buffer
+                    if(count == 1) {
+                        call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "count": count, "commit": commit};  
+                        mb_response[activeIndex][regidx].value = newValue; 
+                    }
+                    else {
+                        call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": arrNewValue, "count": count, "commit": commit};  
+                        for(var i=0;i<count;i++) {
+                            mb_response[activeIndex][regidx + i].value = arrNewValue[i];      // write into buffer
+                        }
+                    }
+                    
                 }
             }
             commit_call(call); 
@@ -460,13 +495,16 @@ function resetCounterValue(id) {
                 regName[0] = id.substring(2) + index;
             }           
         }
+        genCounters = [];
+        var cntIndex = 0;
         for(var i=0;i<regName.length;i++) {
             if(regName[i] != "") {
-                write_register(regName[i],0);  
+                //write_register(regName[i],0);  // clear directly during commit
+                genCounters[cntIndex++] = regName[i]; 
+                commitGenerator = true;
+                commitGeneratorCounters = true;
             }
-        }
-        commitGenerator = true;
-        commitGeneratorSettings = true;
+        }        
     }
 
 }
@@ -1146,7 +1184,7 @@ function extMonitorPower(init) {
                 actPowerPercent =  actPowerW / maxPowerW * 100;
             }
             setProgBarValue("idPGBarValueActPower",actPowerPercent);
-
+            
             addHTML("idPGBarSetPower", getMBregister(activeIndex,"targetPower").formatted.trim());
             setProgBarValue("idPGBarValueSetPower",getMBregister(activeIndex,"targetPower").value);
             
@@ -1256,9 +1294,8 @@ function extMonitorStatusConfig(init,level) {
             control0 = getMBregister(activeIndex,"control0").value;
             status0 = getMBregister(activeIndex,"status0").value;
             fwOptions = getMBregister(activeIndex,"fwOptions").value;
-            //console.log("[2]"+control0);
 
-            if(/*refreshAlldone*/ indexChanged) {
+            if(indexChanged) {
                 if(setButtonState("btStatusConfig_USpower",control0 & (1 << 0),lng.start[LNG],lng.stop[LNG])) {
                     //[activeIndex] = 1; //state has changed
                 }
@@ -1723,10 +1760,10 @@ function writeCounterOverview(level,init) {
 
                 addHTML("cntPowerUp", getMBregister(activeIndex,"cntPowerUp").formatted.trim());
                 addHTML("cntCrash", getMBregister(activeIndex,"cntCrash").formatted.trim());
-                var temperature = getMBregister(activeIndex,"tempMaxPcbSet"+index).value;
+                var temperature = parseFloat(getMBregister(activeIndex,"tempMaxPcbSet"+index).value);
                 var temp_unit = getMBregister(activeIndex,"tempMaxPcbSet"+index).symbol;
                 for(var i=0;i<4;i++) {
-                    var actTemp = getMBregister(activeIndex,"tempMaxQ"+(i+1).toString() + "Set"+index).value;
+                    var actTemp = parseFloat(getMBregister(activeIndex,"tempMaxQ"+(i+1).toString() + "Set"+index).value);
                     if(actTemp > temperature) {
                         temperature = actTemp;
                     }
