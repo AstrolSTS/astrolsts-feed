@@ -744,13 +744,16 @@ function writeMonitorTable(level,init) {
 
                 var warningNumber = getMBregister(index,"warning").value;
                 var errorNumber = getMBregister(index,"error").value;
+                var warningText = getWarningText(warningNumber);
+                var errorText = getErrorText(errorNumber);
+
                 id = tableIds[6] + index;
                 if(errorNumber) {
-                    addHTML(id,lng.error[LNG] + " " + errorNumber);
+                    addHTML(id,lng.error[LNG] + " " + errorNumber + ": " + errorText);
                     document.getElementById(id).className = "statusERROR";
                 }
                 else if(warningNumber){
-                    addHTML(id,lng.warning[LNG] + " " + warningNumber);
+                    addHTML(id,lng.warning[LNG] + " " + warningNumber + ": " + warningText);
                     document.getElementById(id).className = "statusERROR";
                 }
                 else {
@@ -1023,8 +1026,8 @@ function limitParameter() {
 
                 var id = "frqMinSet"+i;
                 if(document.getElementById(id).disabled == false) {
-                    var min = document.getElementById("frqMinSet"+i).value;
-                    var max = document.getElementById("frqMaxSet"+i).value;
+                    var min = parseInt(document.getElementById("frqMinSet"+i).value);
+                    var max = parseInt(document.getElementById("frqMaxSet"+i).value);
                     if(min > max) {
                         document.getElementById("frqMinSet"+i).value = max;
                     }
@@ -1483,46 +1486,9 @@ function extMonitorGeneratorInfo(init) {
             }
 
             var warningNumber = getMBregister(activeIndex,"warning").value;
-            var warningText = "";
-            switch(warningNumber) {
-                case 0: warningText += lng.error_0[LNG]; break;
-                case 1: warningText += lng.error_1[LNG]; break;
-                case 2: warningText += lng.error_2[LNG]; break;
-                case 3: warningText += lng.error_3[LNG]; break;
-                case 4: warningText += lng.error_4[LNG]; break;
-                case 5: warningText += lng.error_5[LNG]; break;
-                case 6: warningText += lng.error_6[LNG]; break;
-                case 7: warningText += lng.error_7[LNG]; break;
-                case 8: warningText += lng.error_8[LNG]; break;
-                case 9: warningText += lng.error_9[LNG]; break;
-
-                default: warningText += lng.not_defined[LNG]; break;
-            }
+            var warningText = getWarningText(warningNumber);
             var errorNumber = getMBregister(activeIndex,"error").value;
-            var errorText = "";
-            switch(errorNumber) {
-                case 0: errorText += lng.error_0[LNG]; break;
-                case 1: errorText += lng.error_1[LNG]; break;
-                case 2: errorText += lng.error_2[LNG]; break;
-                case 3: errorText += lng.error_3[LNG]; break;
-                case 4: errorText += lng.error_4[LNG]; break;
-                case 5: errorText += lng.error_5[LNG]; break;
-                case 6: errorText += lng.error_6[LNG]; break;
-                case 7: errorText += lng.error_7[LNG]; break;
-                case 8: errorText += lng.error_8[LNG]; break;
-                case 9: errorText += lng.error_9[LNG]; break;
-                
-                case 100: errorText += lng.error_100[LNG]; break;
-                case 101: errorText += lng.error_101[LNG]; break;
-                case 102: errorText += lng.error_102[LNG]; break;
-                
-                case 252: errorText += lng.error_252[LNG]; break;
-                case 253: errorText += lng.error_253[LNG]; break;
-                case 254: errorText += lng.error_254[LNG]; break;
-                case 255: errorText += lng.error_255[LNG]; break;
-
-                default: errorText += lng.not_defined[LNG]; break;
-            }
+            var errorText = getErrorText(errorNumber);
             if(errorNumber) {
                 addHTML("idInfoErrorTitle", lng.error[LNG]);
                 addHTML("idInfoError", "#"+errorNumber);
@@ -1551,6 +1517,53 @@ function extMonitorGeneratorInfo(init) {
             addHTML("idInfoErrorText", "-");
         }
     }
+}
+
+function getWarningText(warningNumber) {
+    var warningText = "";
+    switch(warningNumber) {
+        case 0: warningText += lng.error_0[LNG]; break;
+        case 1: warningText += lng.error_1[LNG]; break;
+        case 2: warningText += lng.error_2[LNG]; break;
+        case 3: warningText += lng.error_3[LNG]; break;
+        case 4: warningText += lng.error_4[LNG]; break;
+        case 5: warningText += lng.error_5[LNG]; break;
+        case 6: warningText += lng.error_6[LNG]; break;
+        case 7: warningText += lng.error_7[LNG]; break;
+        case 8: warningText += lng.error_8[LNG]; break;
+        case 9: warningText += lng.error_9[LNG]; break;
+
+        default: warningText += lng.not_defined[LNG]; break;
+    }
+    return warningText;
+}
+
+function getErrorText(errorNumber) {
+    var errorText = "";
+    switch(errorNumber) {
+        case 0: errorText += lng.error_0[LNG]; break;
+        case 1: errorText += lng.error_1[LNG]; break;
+        case 2: errorText += lng.error_2[LNG]; break;
+        case 3: errorText += lng.error_3[LNG]; break;
+        case 4: errorText += lng.error_4[LNG]; break;
+        case 5: errorText += lng.error_5[LNG]; break;
+        case 6: errorText += lng.error_6[LNG]; break;
+        case 7: errorText += lng.error_7[LNG]; break;
+        case 8: errorText += lng.error_8[LNG]; break;
+        case 9: errorText += lng.error_9[LNG]; break;
+        
+        case 100: errorText += lng.error_100[LNG]; break;
+        case 101: errorText += lng.error_101[LNG]; break;
+        case 102: errorText += lng.error_102[LNG]; break;
+        
+        case 252: errorText += lng.error_252[LNG]; break;
+        case 253: errorText += lng.error_253[LNG]; break;
+        case 254: errorText += lng.error_254[LNG]; break;
+        case 255: errorText += lng.error_255[LNG]; break;
+
+        default: errorText += lng.not_defined[LNG]; break;
+    }
+    return errorText;
 }
 
 function extMonitorElectricalData(init) {
