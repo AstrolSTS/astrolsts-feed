@@ -22,6 +22,7 @@ var COM_SCAN_TIME     = 10;
 var com_scan_cnt      = 0;
 var nb_commits        = 0;
 var parameter_auto_refresh = 1;
+var freqSetCommit = 1;
 
 var generatorEnabled  = [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];      // 0 = disable, 1 = enable
 var generatorSimulate = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = constant values
@@ -158,13 +159,15 @@ function end_of_update() {
     update_generator_communication();
     indexChanged = false;
 
+    commitGeneratorAsync();
+/*
     if(commitGenerator) {
         commitGenerator = false;
         if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) { 
             if(activeIndex != 0) {
                 if(commitGeneratorSettings) {
                     commitGeneratorSettings = false;
-                    if(isButtonState("btStatusConfig_USpower", lng.start[LNG])) {                           // generator is already running, update control register only
+                    if(isButtonState("btStatusConfig_USpower", lng.stop[LNG])) {                           // generator is already running, update control register only
                         setTimeout(function() { commit_register("control0","",10,true); },        100);     // commit all control registers
                     }
                     else {
@@ -203,8 +206,63 @@ function end_of_update() {
             }
         }
     }
+    */
 
 }
+
+async function commitGeneratorAsync() {
+
+    if (!commitGenerator) return;
+    commitGenerator = false;
+
+    if (!isBackendConnected(activeIndex) || generatorSimulate[activeIndex] == 1) return;
+
+    if (activeIndex !== 0) {
+
+        // --- SETTINGS --------------------------------------------------------
+        if (commitGeneratorSettings) {
+            commitGeneratorSettings = false;
+
+            if (isButtonState("btStatusConfig_USpower", lng.stop[LNG])) {
+                await commit_register("control0", "", 10, true);
+            }
+            else {
+                await commit_register("configSet1", "", 11, true);
+                await commit_register("configSet2", "", 11, true);
+                await commit_register("configSet3", "", 11, true);
+                await commit_register("configSet4", "", 11, true);
+                await commit_register("control0", "", 2, true);
+                await commit_register("degasCycleTime", "", 4, true);
+                await save_fw_options(false);
+            }
+        }
+
+        // --- COUNTERS --------------------------------------------------------
+        else if (commitGeneratorCounters) {
+            commitGeneratorCounters = false;
+
+            if (genCounters.length === 1) {
+                await commit_register(genCounters[0], 0, 1, true);
+            }
+            else if (genCounters.length === 5) {
+                await commit_register("tempMaxQ1Set" + getFreqSelect(), [0,0,0,0,0], 5, true);
+            }
+            else {
+                await commit_register("tempMaxQ1Set" + getFreqSelect(), [0,0,0,0,0,0,0,0,0,0,0], 11, true);
+                await commit_register("operatingTime", 0, 1, true);
+                await commit_register("cntPowerUp", [0,0], 2, true);
+            }
+        }
+
+        // --- DEFAULT ----------------------------------------------------------
+        else {
+            await commit_register("control0", "", 2, true);
+            await commit_register("fwOptions", "", 1, true);
+            await save_fw_options(false);
+        }
+    }
+}
+
 
 function refresh_all_delayed() {
     refreshAll = true;
@@ -294,7 +352,7 @@ function save_generator_all() {
 function save_generator() {
     if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) {       
         var control0 = getMBregister(activeIndex,"control0").value & (0x70);
-        if(isButtonState("btStatusConfig_USpower", lng.start[LNG])) { control0 |= (1 << 0); }
+        if(isButtonState("btStatusConfig_USpower", lng.stop[LNG])) { control0 |= (1 << 0); }
         var actFreqSet = getFreqSelect();
         control0 |= actFreqSet << 1;
         if(isButtonState("btStatusConfig_Degas", lng.on[LNG])) { control0 |= (1 << 7); }
@@ -386,81 +444,86 @@ function commit_call(call) {
     });
 }
 
-function commit_register(id,value,count,commit) {
-
-    if(generatorEnabled[activeIndex]) {
-        if(generatorSimulate[activeIndex] == 0) {       
-            let regidx = getMBregister(activeIndex,id).regidx;
-            let doCommitOnly = false;
-            let newValue = 0;
-            let arrNewValue = [];
-            let call;
-            if(value === "") {
-                doCommitOnly = true;
-            }
-            else {
-                if(count == 1) {
-                    newValue = value.toString();
-                }
-                else {
-                    arrNewValue = value;
-                }
-            }
-            if(commit == false) {
-                if(activeIndex != 0) {
-                    call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "commit": commit};   
-                }
-                else {
-                    call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "commit": true}; 
-                }
-                mb_response[activeIndex][regidx].value = newValue;      // write into buffer
-            }
-            else {
-                nb_commits++;
-                if(doCommitOnly) {
-                    call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "count": count, "commit": commit};  
+async function commit_register(id,value,count,commit) {
+    return new Promise(resolve => {
+        if(generatorEnabled[activeIndex]) {
+            if(generatorSimulate[activeIndex] == 0) {       
+                let regidx = getMBregister(activeIndex,id).regidx;
+                let doCommitOnly = false;
+                let newValue = 0;
+                let arrNewValue = [];
+                let call;
+                if(value === "") {
+                    doCommitOnly = true;
                 }
                 else {
                     if(count == 1) {
-                        call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "count": count, "commit": commit};  
-                        mb_response[activeIndex][regidx].value = newValue; 
+                        newValue = value.toString();
                     }
                     else {
-                        call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": arrNewValue, "count": count, "commit": commit};  
-                        for(var i=0;i<count;i++) {
-                            mb_response[activeIndex][regidx + i].value = arrNewValue[i];      // write into buffer
-                        }
+                        arrNewValue = value;
                     }
-                    
                 }
+                if(commit == false) {
+                    if(activeIndex != 0) {
+                        call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "commit": commit};   
+                    }
+                    else {
+                        call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "commit": true}; 
+                    }
+                    mb_response[activeIndex][regidx].value = newValue;      // write into buffer
+                }
+                else {
+                    nb_commits++;
+                    if(doCommitOnly) {
+                        call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "count": count, "commit": commit};  
+                    }
+                    else {
+                        if(count == 1) {
+                            call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": newValue, "count": count, "commit": commit};  
+                            mb_response[activeIndex][regidx].value = newValue; 
+                        }
+                        else {
+                            call = { "generator": activeIndex,  "cmd": "write", "index":regidx, "value": arrNewValue, "count": count, "commit": commit};  
+                            for(var i=0;i<count;i++) {
+                                mb_response[activeIndex][regidx + i].value = arrNewValue[i];      // write into buffer
+                            }
+                        }
+                        
+                    }
+                }
+                commit_call(call); 
             }
-            commit_call(call); 
         }
-    }
+        resolve();
+    });
 }
 
-function save_fw_options(permanent) {
-    var fwOptions = getMBregister(activeIndex,"fwOptions").value;
+async function save_fw_options(permanent) {
+    return new Promise(resolve => {
+        var fwOptions = getMBregister(activeIndex,"fwOptions").value;
 
-    if(userLevel == "US-ENG") {
-        fwOptions &= ~(0xFF);       // mask out bits before set
-        fwOptions |= document.getElementById("iduRangeSet").value & 0x03;
-        fwOptions |= (document.getElementById("idiRangeSet").value & 0x03) << 2;
-        if(isButtonState("btSaveOperationPoint", lng.on[LNG])) { fwOptions |= (1 << 5);}
-        if(permanent) { fwOptions |= (1 << 4); }                // save persistent          
-        fwOptions |= (document.getElementById("idComSelect").value & 0x03) << 6;
-    }
-    else {
-        fwOptions &= ~(1 << 4);       // mask out save bit, keep all other bits
-        if(permanent) { fwOptions |= (1 << 4); }                // save persistent 
-    }
-    write_register("fwOptions",fwOptions);
-    if(permanent == false) {
-        var fwOptionsAct = getMBregister(activeIndex,"fwOptions").value;
-        if(fwOptionsAct & (1 << 4)) {       // is save flag set
-            commit_register("fwOptions",fwOptions,1,true);                  // clear save flag by direct commit
+        if(userLevel == "US-ENG") {
+            fwOptions &= ~(0xFF);       // mask out bits before set
+            fwOptions |= document.getElementById("iduRangeSet").value & 0x03;
+            fwOptions |= (document.getElementById("idiRangeSet").value & 0x03) << 2;
+            if(isButtonState("btSaveOperationPoint", lng.on[LNG])) { fwOptions |= (1 << 5);}
+            if(permanent) { fwOptions |= (1 << 4); }                // save persistent          
+            fwOptions |= (document.getElementById("idComSelect").value & 0x03) << 6;
         }
-    }
+        else {
+            fwOptions &= ~(1 << 4);       // mask out save bit, keep all other bits
+            if(permanent) { fwOptions |= (1 << 4); }                // save persistent 
+        }
+        write_register("fwOptions",fwOptions);
+        if(permanent == false) {
+            var fwOptionsAct = getMBregister(activeIndex,"fwOptions").value;
+            if(fwOptionsAct & (1 << 4)) {       // is save flag set
+                commit_register("fwOptions",fwOptions,1,true);                  // clear save flag by direct commit
+            }
+        }
+        resolve(); 
+    });
 }
 
 function resetCounterValue(id) {
@@ -673,15 +736,15 @@ function check_access(level) {
 }
 
 function writeMonitorTable(level,init) {
-    var tableHeader = ["#", lng.us_short[LNG], lng.power[LNG], lng.set_power_short[LNG], lng.degas[LNG], lng.frequency[LNG], lng.status[LNG]];
-    var tableIds = ["monIndex", "monUS", "monActPower", "monSetPower", "monDegas", "monFreq", "monStatus"];
+    var tableHeader = ["#", lng.us_short[LNG], lng.power[LNG], lng.set_power_short[LNG], lng.degas[LNG], lng.frequency[LNG], lng.phase[LNG], lng.pulse_width_power_stage[LNG], lng.temperatures[LNG] + " [Q1..Q4]", lng.status[LNG]];
+    var tableIds = ["monIndex", "monUS", "monActPower", "monSetPower", "monDegas", "monFreq", "monPhase", "monPulseWidthPowerStage", "monTemperatures", "monStatus"];
     var maxRow = MAX_GENERATORS + 1;
     var maxCol = tableIds.length;
 
     level = check_access(level);
 
     if(level == "ENG" || level == "US-ENG") {
-        maxCol = 8;
+        maxCol++;
     }
 
     if(init == "init") {
@@ -692,7 +755,7 @@ function writeMonitorTable(level,init) {
             document.write("<tr>");
             for(var col=0;col<maxCol;col++) {
                 if(row == 0) {
-                    if(col == 7) {
+                    if(col == (tableIds.length)) {
                         document.write("<td></td>");
                     }
                     else {
@@ -700,7 +763,7 @@ function writeMonitorTable(level,init) {
                     }
                 }
                 else {
-                    if(col == 7) {
+                    if(col == (tableIds.length)) {
                         document.write("<td class='engParam' onclick='updateExtMonitorInfo("+(row-1)+")'><i class='fa fa-plus-square' aria-hidden='true'></i></td>");
                     }
                     else {
@@ -728,7 +791,7 @@ function writeMonitorTable(level,init) {
                     addHTML(id,lng.off[LNG]);
                     document.getElementById(id).className = "statusOFF";
                 }
-                addHTML(tableIds[2] + index,getMBregister(index,"actualPower").formatted.trim());
+                addHTML(tableIds[2] + index,getMBregister(index,"actualPower").formatted.trim()+" ["+getMBregister(index,"powerP").formatted.trim()+"]");
                 addHTML(tableIds[3] + index,getMBregister(index,"targetPower").formatted.trim());
                 id = tableIds[4] + index;
                 if(status0 & (1 << 7)) {        // degas
@@ -740,14 +803,24 @@ function writeMonitorTable(level,init) {
                     document.getElementById(id).className = "statusOFF";
                 }
                 var freq = (status0 >> 1) & 0x7;
-                addHTML(tableIds[5] + index,freq);
+                addHTML(tableIds[5] + index,freq+" ["+getMBregister(index,"actualFrequency").formatted.trim()+"]");
+
+                addHTML(tableIds[6] + index,getMBregister(index,"actualPhase").formatted.trim());
+
+                addHTML(tableIds[7] + index,calcPulseWidthPercent(index) + " %");
+                
+                var t1 = getMBregister(index,"temperaturQ1").formatted.trim();
+                var t2 = getMBregister(index,"temperaturQ2").formatted.trim();
+                var t3 = getMBregister(index,"temperaturQ3").formatted.trim();
+                var t4 = getMBregister(index,"temperaturQ4").formatted.trim();
+                addHTML(tableIds[8] + index,t1 + " | " + t2 + " | " + t3 + " | " + t4);
 
                 var warningNumber = getMBregister(index,"warning").value;
                 var errorNumber = getMBregister(index,"error").value;
                 var warningText = getWarningText(warningNumber);
                 var errorText = getErrorText(errorNumber);
 
-                id = tableIds[6] + index;
+                id = tableIds[9] + index;
                 if(errorNumber) {
                     addHTML(id,lng.error[LNG] + " " + errorNumber + ": " + errorText);
                     document.getElementById(id).className = "statusERROR";
@@ -1111,7 +1184,7 @@ function updateExtMonitorInfo(index) {
     activeIndex = index;
 
     for(var i=0;i<16;i++) {
-        var symbol = document.getElementById('idMonTable').rows[i+1].cells.item(7);
+        var symbol = document.getElementById('idMonTable').rows[i+1].cells.item(10);
         if(i==index && eLMparam.style.display == "block") {
             symbol.innerHTML = symbol_min;
         }
@@ -1198,8 +1271,7 @@ function extMonitorPower(init) {
             addHTML("idPGBarSetPower", getMBregister(activeIndex,"targetPower").formatted.trim());
             setProgBarValue("idPGBarValueSetPower",getMBregister(activeIndex,"targetPower").value);
             
-            var pulseWidth = getMBregister(activeIndex,"pulsWidthPowerState").value;
-            var pulseWithPercent = Math.round((pulseWidth * 100) / 255);
+            var pulseWithPercent = calcPulseWidthPercent(activeIndex);
             addHTML("idPGBarPulseWidthPowerStage", pulseWithPercent + " %");
             setProgBarValue("idPGBarValuePulseWidthPowerStage",pulseWithPercent);
 
@@ -1214,8 +1286,12 @@ function extMonitorPower(init) {
         }
 
     }
+}
 
-
+function calcPulseWidthPercent(activeIndex) {
+    var pulseWidth = getMBregister(activeIndex,"pulsWidthPowerState").value;
+    var pulseWithPercent = Math.round((pulseWidth * 100) / 255);
+    return pulseWithPercent;
 }
 
 function extMonitorFrequency(init) {
@@ -1301,7 +1377,7 @@ function extMonitorStatusConfig(init,level) {
         document.write("<div class='extMonitorContent'>");
         document.write("<h4 class='contentHeader'><span>"+lng.status[LNG] +" / "+lng.config[LNG] +"</span></h4>");
         document.write("<table id='extMonStatusConfigTable' style='width:100%'><colgroup><col style='width:70%'><col style='width:30%'></colgroup><tbody>");
-        document.write("<tr><td>"+lng.us_power[LNG] +"</td><td><input id='btStatusConfig_USpower' type='button' class='btOFF' value='"+lng.stop[LNG] +"' onclick="+"changeButtonState(this.id,'"+lng.start[LNG] +"','"+lng.stop[LNG] +"')"+"></input></td></tr>");
+        document.write("<tr><td>"+lng.us_power[LNG] +"</td><td><input id='btStatusConfig_USpower' type='button' class='btOFF' value='"+lng.start[LNG] +"' onclick="+"changeButtonState(this.id,'"+lng.stop[LNG] +"','"+lng.start[LNG] +"')"+"></input></td></tr>");
         document.write("<tr><td>"+lng.frequency[LNG] +"</td>");
         document.write("<td><input id='btFrq0' type='button' class='btBitOFF' value='1' onclick="+"changeBitState(this.id)"+"></input>");
         document.write("<input id='btFrq1' type='button' class='btBitOFF' value='2' onclick="+"changeBitState(this.id)"+"></input>");
@@ -1328,7 +1404,7 @@ function extMonitorStatusConfig(init,level) {
         }
 
         document.write("<tr><td><input id='btReadGenerator' type='button' class='btnCounterReset' onclick='read_generator()' value='"+lng.read[LNG]+"'></input>&nbsp;<input id='btResetGenerator' type='button' class='btnCounterReset' onclick='reset_generator()' value='"+lng.reset[LNG]+"'></input></td><td><input id='btSaveGenerator' type='button' class='btnCounterReset' onclick='save_generator_all()' value='"+lng.save[LNG]+"'></input></td></tr>");
-        
+    
         document.write("</tbody></table>")
         document.write("<div style='width:300px;height:0px'></div>");
         document.write("</div>");
@@ -1342,15 +1418,35 @@ function extMonitorStatusConfig(init,level) {
         if(isBackendConnected(activeIndex)) {
             control0 = getMBregister(activeIndex,"control0").value;
             status0 = getMBregister(activeIndex,"status0").value;
+            status1 = getMBregister(activeIndex,"status1").value;
             fwOptions = getMBregister(activeIndex,"fwOptions").value;
 
-            if(indexChanged) {
-                if(setButtonState("btStatusConfig_USpower",control0 & (1 << 0),lng.start[LNG],lng.stop[LNG])) {
-                    //[activeIndex] = 1; //state has changed
+            var id = "btStatusConfig_USpower";
+            var btnState = isButtonState(id, lng.stop[LNG]);
+            var actState = status0 & (1 << 0);
+            var btnElement = document.getElementById(id);
+            
+            if(btnElement.disabled) {                       // is disabled
+                if(btnState == actState) {          // activate button when no command is pending
+                    btnElement.disabled = false;
                 }
-                if(setButtonState("btStatusConfig_Degas",control0 & (1 << 7),lng.on[LNG],lng.off[LNG])) {
-                    //[activeIndex] = 1; //state has changed
+            }
+            else {
+                setButtonState(id,actState,lng.stop[LNG],lng.start[LNG]);       // update button state
+            }
+
+            var id = "btStatusConfig_Degas";
+            var btnState = isButtonState(id, lng.on[LNG]);
+            var actState = (status0 & (1 << 7)) >> 7;
+            var btnElement = document.getElementById(id);
+            
+            if(btnElement.disabled) {                       // is disabled
+                if(btnState == actState) {          // activate button when no command is pending
+                    btnElement.disabled = false;
                 }
+            }
+            else {
+                setButtonState(id,actState,lng.on[LNG],lng.off[LNG]);       // update button state
             }
 
             if(indexChanged) {
@@ -1376,19 +1472,20 @@ function extMonitorStatusConfig(init,level) {
             if(configSet & (1 << 1)) { addHTML("idPhaseOptimization", lng.on[LNG]); } else { addHTML("idPhaseOptimization", lng.off[LNG]);}
             if(configSet & (1 << 2)) { addHTML("idFreqRegulation", lng.on[LNG]); } else { addHTML("idFreqRegulation", lng.off[LNG]);}
 
-            document.getElementById("btStatusConfig_USpower").disabled = false;
-            document.getElementById("btStatusConfig_Degas").disabled = false;
+            //document.getElementById("btStatusConfig_USpower").disabled = false;
+            //document.getElementById("btStatusConfig_Degas").disabled = false;
             document.getElementById("btReadGenerator").disabled = false;
             document.getElementById("btSaveGenerator").disabled = false;
 
             updateFreqSelection();
+            updateFreqSetBitsFromStatus();
 
             if(level == "US-ENG") {
                 document.getElementById("btSaveOperationPoint").disabled = false;
                 document.getElementById("idComSelect").disabled = false;
             }
 
-            if(isButtonState("btStatusConfig_USpower", lng.start[LNG])) { 
+            if(isButtonState("btStatusConfig_USpower", lng.stop[LNG])) { 
                 setButtonText("btSaveGenerator",lng.update[LNG]);
             }
             else {
@@ -1429,6 +1526,7 @@ function extMonitorStatusConfig(init,level) {
 
 function updateFreqSelection() {
     var nbFreq = 0;
+   
     for(var i=0;i<4;i++) {
         if(document.getElementById("idCBsetActive"+i).checked) {
             document.getElementById("btFrq"+i).disabled = false;
@@ -1443,9 +1541,11 @@ function updateFreqSelection() {
             nbFreq++;
         }
     }
+
     if(nbFreq == 0){
-        var status0 = getMBregister(activeIndex,"status0").value;
-        setFreqSelect((status0 >> 1) & 0x3);
+        var actFreq = (getMBregister(activeIndex,"status0").value >> 1) & 0x03;
+        setFreqSelect(actFreq);
+        freqSetCommit = actFreq;
     }
 
 
@@ -1475,7 +1575,7 @@ function extMonitorGeneratorInfo(init) {
 
             addHTML("serialNumberCore", getMBregister(activeIndex,"serNr").formatted.trim());
             addHTML("configVers", getVersionString(activeIndex,"ConfigVers","ConfigVersPatch"));
-            addHTML("hwVers", getVersionString(activeIndex,"hwVers","hwVersPatch"));
+            addHTML("hwVers", getHWVersionString(activeIndex,"hwVers","hwVersPatch"));
             addHTML("coreMCUVers", getVersionString(activeIndex,"swVersMcu","swVersPatchMcu"));
             addHTML("coreFPGAVers", getVersionString(activeIndex,"swVersFpga","swVersPatchFpga"));
             if(add_infos[activeIndex].swVersion) {
@@ -1573,8 +1673,8 @@ function extMonitorElectricalData(init) {
         document.write("<table id='extMonElecDataTable' style='width:100%'><colgroup><col style='width:60%'><col style='width:40%'></colgroup><tbody>");
         document.write("<tr><td>"+lng.hf_current[LNG] +"</td><td><span id='idHFcurrent'></span></td></tr>");
         document.write("<tr><td>"+lng.voltage_power_stage[LNG] +"</td><td><span id='idVoltPwrStage'></span></td></tr>");
-        document.write("<tr><td>"+lng.power[LNG] +" P</td><td><span id='idPowerP'></span></td></tr>");
-        document.write("<tr><td>"+lng.power[LNG] +" S</td><td><span id='idPowerS'></span></td></tr>");
+        document.write("<tr><td>"+lng.power[LNG] +"</td><td><span id='idPowerP'></span></td></tr>");
+        document.write("<tr><td>"+lng.apparent_current[LNG] + "</td><td><span id='idApparentCurrent'></span></td></tr>");
         document.write("<tr><td>"+lng.actual_phase[LNG] +"</td><td><span id='idActPhase'></span></td></tr>");
         document.write("</tbody></table>")
         document.write("<div style='width:350px;height:0px'></div>");
@@ -1585,14 +1685,14 @@ function extMonitorElectricalData(init) {
             addHTML("idHFcurrent", getMBregister(activeIndex,"current").formatted.trim());
             addHTML("idVoltPwrStage", getMBregister(activeIndex,"voltagePowerStage").formatted.trim());
             addHTML("idPowerP", getMBregister(activeIndex,"powerP").formatted.trim());
-            addHTML("idPowerS", getMBregister(activeIndex,"powerS").formatted.trim());
+            addHTML("idApparentCurrent", getMBregister(activeIndex,"apparentCurrent").formatted.trim());
             addHTML("idActPhase", getMBregister(activeIndex,"actualPhase").formatted.trim());
         }
         else {
             addHTML("idHFcurrent", "-");
             addHTML("idVoltPwrStage", "-");
             addHTML("idPowerP", "-");
-            addHTML("idPowerS", "-");
+            addHTML("idApparentCurrent", "-");
             addHTML("idActPhase", "-");
         }
     }
@@ -1664,24 +1764,57 @@ function changeSliderValue(id,tarID,forceUpdate) {
 function changeBitState(id) {
     var element = document.getElementById(id);
     if(element) {
+        
         for(var i = 0;i<4;i++) {
             var idx = "btFrq"+i;
-            if(isBitState(idx) && id != idx){
+            //if(isBitState(idx) && id != idx){
                 setBitState(idx,0);
+            //}
+        }
+        
+        for(var i = 0;i<4;i++) {
+            var idx = "btFrq"+i;
+            if(id == idx) {
+                freqSetCommit = i+1;
+               // setBitState(idx,0);
+                break;
             }
         }
         //if(element.classList.contains("btBitON")) {
         //    element.className = "btBitOFF";
         //}
         //else 
-        if(element.classList.contains("btBitOFF")) {
-            element.className = "btBitON";
-        }
+        //if(element.classList.contains("btBitOFF")) {
+        //    element.className = "btBitON";
+        //}
+
+        element.disabled = true;
+
         if(isBackendConnected(activeIndex)) {
             // marking selected generator value has changed if connected only
             if(id == "btFrq0" || id == "btFrq1" || id == "btFrq2" || id == "btFrq3") {
                 markingChanges[activeIndex] = setControl;
             }
+        }
+    }
+}
+
+function updateFreqSetBitsFromStatus() {
+    var actFreq = (getMBregister(activeIndex,"status0").value >> 1) & 0x03;
+
+    for(var i=0;i<4;i++) {
+        var element = document.getElementById("btFrq"+i);
+        
+        if((i+1) == actFreq) {
+            if(element.disabled == false) {
+               element.className = "btBitON"; 
+            }
+            else {
+                element.className = "btBitOFF"; 
+            }
+        }
+        else {
+            element.className = "btBitOFF";
         }
     }
 }
@@ -1709,6 +1842,7 @@ function changeButtonState(id,strON,strOFF) {
             element.value = strON;
             element.className = "btON";
         }
+        element.disabled = true;        // disable button until status is read back
         if(isBackendConnected(activeIndex)) {
             // marking selected generator value has changed if connected only
             if(id == "btStatusConfig_USpower" || id == "btStatusConfig_Degas") {
@@ -1930,6 +2064,7 @@ function writeInfo(init) {
 }
 
 function getFreqSelect() {
+    /*
     var ret = 1;
     for(var i=0;i<4;i++) {
         if(isBitState("btFrq"+i)) {
@@ -1938,6 +2073,9 @@ function getFreqSelect() {
         }
     }
     return ret;
+    */
+   console.log("freqSetCommit = "+freqSetCommit);
+    return freqSetCommit;
 }
 
 function setFreqSelect(index) {
@@ -1990,6 +2128,17 @@ function getVersionString(genIndex,major_minor, patch) {
     ver_minor = parseInt(getMBregister(genIndex,major_minor).formatted.trim() / 256);   // MBS
     ver_patch = parseInt(getMBregister(genIndex,patch).formatted.trim());
     return "V "+ver_major+"."+ver_minor+"."+ver_patch;
+}
+
+function getHWVersionString(genIndex,major_minor, patch) {
+    var ver_major,ver_minor,ver_patch;
+    ver_major = parseInt(getMBregister(genIndex,major_minor).formatted.trim() % 256);   // LSB
+    ver_minor = parseInt(getMBregister(genIndex,major_minor).formatted.trim() / 256);   // MBS
+    ver_patch = parseInt(getMBregister(genIndex,patch).formatted.trim());
+
+    var majorLetter = String.fromCharCode(64 + ver_major); // 1 -> A
+
+    return majorLetter +" "+ver_minor+" "+ver_patch;
 }
 
 function addHTML(id,text) {
@@ -2100,7 +2249,7 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   actual_power:                 ["Actual Power",                    "Aktuelle Leistung"],
   set_power:                    ["Set Power",                       "Eingestellte Leistung"],
   set_power_short:              ["Set Power",                       "Eing. Leistung"],
-  pulse_width_power_stage:      ["Pulse width power stage",         "Stellwert Endstufe"],
+  pulse_width_power_stage:      ["Pulse width",                     "Stellwert"],
   frequency:                    ["Frequency",                       "Frequenz"],
   frequency_short:              ["Freq",                            "Freq"],
   set_min:                      ["Set min",                         "Minimal"],
@@ -2109,10 +2258,10 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   actual:                       ["Actual",                          "Aktuell"],
   status:                       ["Status",                          "Status"],
   config:                       ["Config",                          "Konfiguration"],
-  us_power:                     ["US Power",                        "US Leistung"],
+  us_power:                     ["Power",                           "Leistung"],
   freq_sweep:                   ["Freq Sweep",                      "Freq Sweep"],
   ampl_sweep:                   ["Ampl Sweep",                      "Ampl Sweep"],
-  degas:                        ["DEGAS",                           "DEGAS"],
+  degas:                        ["Degas",                           "Degas"],
   resonance:                    ["Resonance",                       "Resonanz"],
   phase_optimizing_long:        ["Phase Optimization",              "Phasenoptimierung"],
   freq_regulation:              ["Freq Regulation",                 "Freq Regulation"],
@@ -2138,13 +2287,12 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   electrical_data:              ["Electrical Data",                 "Elektrische Daten"],
   hf_current:                   ["HF current",                      "HF Strom"],
   voltage_power_stage:          ["Voltage Power Stage",             "Spannung Endstufe"],
-  actual_phase:                 ["Actual Phase",                    "Aktuelle Phase"],
+  actual_phase:                 ["Phase",                           "Phase"],
   temperatures:                 ["Temperatures",                    "Temperaturen"],
   pcb:                          ["PCB",                             "PCB"],
   power_stage:                  ["Power Stage",                     "Endstufe"],
   setting_number:               ["Setting number",                  "Einstellungsnummer"],
   active:                       ["Active",                          "Aktiv"],
-  set_power_short:              ["Set power",                       "Eing. Leistung"],
   freq_min:                     ["Freq min",                        "Freq min"],
   freq_max:                     ["Freq max",                        "Freq max"],
   phase_set:                    ["Phase set",                       "Eing. Phase"],
@@ -2193,7 +2341,7 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   save_operation_point:         ["Save operation point",            "Arbeitspunkt speichern"],
   interface:                    ["COM Interface",                   "Komm. Schnittstelle"],
   param_auto_refresh:           ["Parameter auto refresh",          "Autom. Param-Aktual."],
-  
+  apparent_current:             ["Apparent current",                "Scheinstrom"],
   
   //----Error text, keep order
   error_0:                      ["no error",                        "kein Fehler"],
@@ -2673,20 +2821,20 @@ var sim_mb_data = {
                 },
                 {
                     "regidx": 26,
-                    "regname": "powerS",
-                    "description": "Ist-Scheinleistung in Watt",
-                    "min": 1.000000,
-                    "max": 3000.000000,
-                    "resolution": 1.000000,
-                    "unit": "voltampere",
-                    "symbol": "VA",
+                    "regname": "apparentCurrent",
+                    "description": "Ist-Scheinstrom in A",
+                    "min": 0.000000,
+                    "max": 255.000000,
+                    "resolution": 0.100000,
+                    "unit": "ampere",
+                    "symbol": "A",
                     "spiaddr": 34,
                     "rawlen": 2,
                     "modbusreg": 27,
                     "readonly": true,
                     "engval": 135,
-                    "value": 135.000000,
-                    "formatted": "135 VA"
+                    "value": 13.500000,
+                    "formatted": "13.5 A"
                 },
                 {
                     "regidx": 27,
