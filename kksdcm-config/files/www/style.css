@@ -225,7 +225,7 @@ body {
 }
 
 .LMparam {
-  width: 60px;
+  width: 65px;
   float: right;
   text-align: right;
 }
@@ -440,11 +440,59 @@ body {
   padding-right: 5px;
   font-weight: bold;
 }
-
-.btnCounterReset:hover {
+.btnCounterReset:disabled {
+  background-color: var(--buttoncolorOFF);
+  color: var(--textcolorDark);
+}
+.btnCounterReset:not(:disabled):hover {
   background-color: var(--bordercolor);
   color: var(--textcolorDark);
 }
+
+.btnStandard {
+  width: 72px;
+  color: var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+  padding-left: 5px;
+  padding-right: 5px;
+  font-weight: bold;
+}
+
+.btnStandard:disabled {
+  background-color: var(--buttoncolorOFF);
+  color: var(--textcolorDark);
+}
+
+.btnStandard:not(:disabled):hover {
+  background-color: var(--bordercolor);
+  color: var(--textcolorDark);
+}
+
+.btBit {
+  width: 18px;
+  color: var(--textcolor);
+  border-radius: var(--borderradius);
+  border: var(--bordercolor) 1px solid;
+  background-color: var(--bgcolor);
+  padding: 2px;
+}
+
+.btBit:disabled {
+  background-color: var(--buttoncolorOFF);
+  color: var(--textcolorDark);
+}
+
+.btBit:not(:disabled):hover {
+  background-color: var(--bordercolor);
+  color: var(--textcolorDark);
+}
+
+.btnSmall { width: 36px; }
+.btnOFF { background-color: var(--bgcolor); }
+.btnON { background-color: var(--buttoncolorON); color: var(--textcolorDark); }
+
 
 .btON {
   width: 72px;
@@ -479,8 +527,8 @@ body {
   border-radius: var(--borderradius);
   border: var(--bordercolor) 1px solid;
   padding: 2x;
-  background-color: var(--buttoncolorON);
-  color: var(--textcolorDark);
+  color: var(--textcolor);
+  background-color: var(--bgcolor);
 }
 
 .btBitON:disabled {
@@ -488,19 +536,35 @@ body {
   color: var(--textcolorDark);
 }
 
+.btBitON:hover {
+  background-color: var(--bordercolor);
+  color: var(--textcolorDark);
+}
+
 .btBitOFF {
   width: 18px;
   border-radius: var(--borderradius);
   border: var(--bordercolor) 1px solid;
-  padding: 2px;
-  background-color: var(--buttoncolorOFF);
+  padding: 2x;
   color: var(--textcolor);
+  background-color: var(--bgcolor);
 }
 
 .btBitOFF:disabled {
   background-color: var(--buttoncolorOFF);
   color: var(--textcolorDark);
 }
+
+.btBitOFF:hover {
+  background-color: var(--buttoncolorOFF);
+  color: var(--textcolorDark);
+}
+
+
+
+
+
+
 
 .paramSelect {
   width: 72px;
@@ -560,3 +624,47 @@ body {
   background:  var(--bordercolor); /* Green background */
   cursor: pointer; /* Cursor on hover */
 }
+
+/* The slider itself */
+.sliderPower {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  border: var(--bordercolor) 1px solid;
+  border-radius: 0px;
+  background: linear-gradient(
+      to right,
+      var(--progresscolor) 0%,
+      var(--progresscolor) var(--val),
+      var(--bgcolor) var(--val),
+      var(--bgcolor) 100%
+  );
+  outline: none;
+  opacity: 0.9;
+  transition: opacity .2s;
+  margin-left: -0px;
+}
+
+.sliderPower:hover {
+  opacity: 1;
+}
+
+/* Chrome / Edge / Safari */
+.sliderPower::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 25px;
+  background: var(--bordercolor);
+  cursor: pointer;
+}
+
+/* Firefox */
+.sliderPower::-moz-range-thumb {
+  width: 15px;
+  height: 25px;
+  background: var(--bordercolor);
+  cursor: pointer;
+}
+
