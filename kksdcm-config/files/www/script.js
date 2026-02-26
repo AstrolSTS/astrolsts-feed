@@ -26,6 +26,8 @@ var freqSetCommit = 1;
 var startGeneratorEnabled = 0;
 var startDecasEnabled = 0;
 var setOPpointEnabled = 0;
+var isSliderPowerActive = false;
+var sliderPowerTimeout = null;
 
 var generatorEnabled  = [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];      // 0 = disable, 1 = enable
 var generatorSimulate = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = constant values
@@ -900,19 +902,19 @@ function writeLMparameter(level,init) {
                 document.write("</tr>");
             }
             if(level == "US-ENG") {
-                document.write("<tr><td colspan='2'>"+lng.degas_cycle_time[LNG] +"</td><td><input type='text' id='par_DegasCycleTime'  class='LMparam' value='0'></input></td><td></td><td></td></tr>");
-                document.write("<tr><td colspan='2'>"+lng.degas_time[LNG] +"</td><td><input type='text' id='par_DegasTime'  class='LMparam' value='0'></input></td><td></td><td></td></tr>");
-                document.write("<tr><td colspan='2'>"+lng.degas_cycle_count[LNG] +"</td><td><input type='text' id='par_DegasCycleCount'  class='LMparam' value='0'></input></td><td></td><td></td></tr>");
+                document.write("<tr><td colspan='3'>"+lng.degas_cycle_time[LNG] +"</td><td><input type='text' id='par_DegasCycleTime'  class='LMparam' value='0'></input></td><td></td></tr>");
+                document.write("<tr><td colspan='3'>"+lng.degas_time[LNG] +"</td><td><input type='text' id='par_DegasTime'  class='LMparam' value='0'></input></td><td></td></tr>");
+                document.write("<tr><td colspan='3'>"+lng.degas_cycle_count[LNG] +"</td><td><input type='text' id='par_DegasCycleCount'  class='LMparam' value='0'></input></td><td></td></tr>");
                 
-                document.write("<tr><td colspan='2'>"+lng.voltage_meas_range[LNG] +"</td>");
-                document.write("<td><select id='iduRangeSet' class=paramSelect><option value=0>33V</option><option value=1>95V</option><option value=2>390V</option><option value=3>450V</option></select></td><td></td><td></td></tr>");
-                document.write("<tr><td colspan='2'>"+lng.current_meas_range[LNG] +"</td>");
-                document.write("<td><select id='idiRangeSet' class=paramSelect><option value=0>8A</option><<option value=2>30A</option></select></td><td></td><td></td></tr>");
+                document.write("<tr><td colspan='3'>"+lng.voltage_meas_range[LNG] +"</td>");
+                document.write("<td><select id='iduRangeSet' class=paramSelect><option value=0>33V</option><option value=1>95V</option><option value=2>390V</option><option value=3>450V</option></select></td><td></td></tr>");
+                document.write("<tr><td colspan='3'>"+lng.current_meas_range[LNG] +"</td>");
+                document.write("<td><select id='idiRangeSet' class=paramSelect><option value=0>8A</option><<option value=2>30A</option></select></td><td></td></tr>");
            
-                document.write("<tr><td colspan='2'>"+lng.save_operation_point[LNG] +"</td>");
-                document.write("<td><input type='checkbox' id='idfwOptionOPpoint' class='LMparamCheckbox' onclick=changeCheckboxState(this.id)></input></td><td></td><td></td></tr>");
+                document.write("<tr><td colspan='3'>"+lng.save_operation_point[LNG] +"</td>");
+                document.write("<td><input type='checkbox' id='idfwOptionOPpoint' class='LMparamCheckbox' onclick=changeCheckboxState(this.id)></input></td><td></td></tr>");
                 
-                document.write("<tr><td colspan=2>"+lng.interface[LNG] +"</td>");
+                document.write("<tr><td colspan=3>"+lng.interface[LNG] +"</td>");
                 document.write("<td><select id='idComSelect' class=paramSelect><option value=0>AUTO</option><option value=1>DCM</option><option value=2>RMT</option><option value=3>ON_OFF</option></select></tr>");
             }   
             
@@ -1225,7 +1227,8 @@ function extMonitorPower(init) {
         document.write("<tr><td><div class='progbarContainer'><div class='progbarValue' id='idPGBarValueActPower' style='width:0%'</div></div></td><td><span id='idPGBarActPower'></span></td></tr>");
 
         document.write("<tr><td><label>"+lng.set_power[LNG] +"</label></td><td></td><td></td></tr>");
-        document.write("<tr><td><div class='progbarContainer'><div class='progbarValue' id='idPGBarValueSetPower'style='width:0%'</div></div></td><td><span id='idPGBarSetPower'></span></td></tr>");
+        document.write("<tr><td><div class='slidecontainer'><input type='range' min='0' max='100' value='0' class='sliderPower' id='sliderPower' oninput='changeSliderPowerValue(this.id)'"+"></div></td><td><span id='idPGBarSetPower'></span></td></tr>");
+        //document.write("<tr><td><div class='progbarContainer'><div class='progbarValue' id='idPGBarValueSetPower'style='width:0%'</div></div></td><td><span id='idPGBarSetPower'></span></td></tr>");
 
         document.write("<tr><td><label>"+lng.pulse_width_power_stage[LNG] +"</label></td><td></td><td></td></tr>");
         document.write("<tr><td><div class='progbarContainer'><div class='progbarValue' id='idPGBarValuePulseWidthPowerStage' style='width:0%'</div></div></td><td><span id='idPGBarPulseWidthPowerStage'></span></td></tr>");
@@ -1233,8 +1236,6 @@ function extMonitorPower(init) {
         document.write("<tr><td><label>"+lng.actual_power[LNG] +"</label></td><td></td><td></td></tr>");
         document.write("<tr><td><div class='progbarContainer'><div class='progbarValue' id='idPGBarValueActPowerPercent' style='width:0%'</div></div></td><td><span id='idPGBarActPowerPercent'></span></td></tr>");
 
-        document.write("<tr><td><div class='slidecontainer'><input type='range' min='0' max='100' value='0' class='sliderPower' id='sliderPower' oninput="+"changeSliderPowerValue(this.id,'idActPower',false)"+"></div></td><td></td><td></td></tr>");
-        
 
         document.write("</tbody></table>")
         document.write("<div style='width:400px;height:0px'></div>");
@@ -1253,7 +1254,7 @@ function extMonitorPower(init) {
             setProgBarValue("idPGBarValueActPower",actPowerPercent);
             
             addHTML("idPGBarSetPower", getMBregister(activeIndex,"targetPower").formatted.trim());
-            setProgBarValue("idPGBarValueSetPower",getMBregister(activeIndex,"targetPower").value);
+            //setProgBarValue("idPGBarValueSetPower",getMBregister(activeIndex,"targetPower").value);
             
             var pulseWithPercent = calcPulseWidthPercent(activeIndex);
             addHTML("idPGBarPulseWidthPowerStage", pulseWithPercent + " %");
@@ -1262,26 +1263,32 @@ function extMonitorPower(init) {
             addHTML("idPGBarActPowerPercent", getMBregister(activeIndex,"actualPower").formatted.trim());
             setProgBarValue("idPGBarValueActPowerPercent",getMBregister(activeIndex,"actualPower").value);
 
-            if(indexChanged) {
+            //if(indexChanged) {
+                
+                
                 var elem = document.getElementById("sliderPower");
                 if(elem) {
                     elem.disabled = false;
-                    elem.value = getMBregister(activeIndex,"targetPower").value;      
-                    changeSliderPowerValue("sliderPower","",false);    
+                    updateSliderPowerFromCode(getMBregister(activeIndex,"targetPower").value);
+                    //elem.value = getMBregister(activeIndex,"targetPower").value;      
+                    //changeSliderPowerValue("sliderPower","",false);    
                 }
-            }
+            //}
         }
         else {
             addHTML("idPGBarActPower", "-"); setProgBarValue("idPGBarValueActPower",0);
-            addHTML("idPGBarSetPower", "-"); setProgBarValue("idPGBarValueSetPower",0);
+            //setProgBarValue("idPGBarValueSetPower",0);
             addHTML("idPGBarPulseWidthPowerStage", "-"); setProgBarValue("idPGBarValuePulseWidthPowerStage",0);
             addHTML("idPGBarActPowerPercent", "-"); setProgBarValue("idPGBarValueActPowerPercent",0);
-
+            
+            addHTML("idPGBarSetPower", "-"); 
             var elem = document.getElementById("sliderPower");
             if(elem) {
                 elem.value = 0;      
-                changeSliderPowerValue("sliderPower","",false);    
+                //changeSliderPowerValue("sliderPower","",false);   
+                //updateSliderPowerFromCode(0); 
                 elem.disabled = true;
+                elem.style.setProperty("--val", "0%");
             }
 
         }
@@ -1453,6 +1460,12 @@ function extMonitorStatusConfig(init,level) {
             document.getElementById("btStopGenerator").disabled = false;
             document.getElementById("btStatusConfig_DegasON").disabled = false;
             document.getElementById("btStatusConfig_DegasOFF").disabled = false;
+
+            if(indexChanged) {
+                var freq = (status0 >> 1) & 0x07;
+                setFreqSelect(freq);
+            }
+
             updateFreqSelection();
 
         }
@@ -1701,22 +1714,48 @@ function extMonitorConfiguration() {
     */
 }
 
-function changeSliderPowerValue(id,tarID,forceUpdate) {
-    var elem = document.getElementById(id);
-    //var tar = document.getElementById(tarID);
-    //if(elem && tar) {
-        var val = (elem.value - elem.min) / (elem.max - elem.min) * 100;
-        elem.style.setProperty("--val", val + "%");
-        /*
-        if(tar.innerHTML !== elem.value) {
-            tar.innerHTML = elem.value;
-            if(isBackendConnected(activeIndex) && forceUpdate) {
-                // marking selected generator value has changed if connected only
-            }
+function changeSliderPowerValue(id) {
+    const slider = document.getElementById(id);
+    if(slider) {
+        if(slider.value < 10) {
+            slider.value = 10;
         }
-        */
-   // }
+        var val = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+        slider.style.setProperty("--val", val + "%");
+
+        if(isSliderPowerActive) {
+            userSetNewSliderPower();
+        }
+
+    }
 }
+
+function updateSliderPowerFromCode(value) {
+    // Do not update the slider while the user is interacting with it
+    if (isSliderPowerActive) return;
+
+    const slider = document.getElementById("sliderPower");
+    if (slider) {
+        if(value < 10) {
+            value = 10;
+        }
+        slider.value = value;
+        changeSliderPowerValue("sliderPower");
+        activateSliderPowerLock();
+
+    }
+}
+
+function userSetNewSliderPower() {
+    const slider = document.getElementById("sliderPower");
+    if(slider) {
+        if(slider.value < 10) {
+            slider.value = 10;
+        }
+        write_register("targetPower",slider.value);  
+    }
+}
+
 
 function changeSliderValue(id,tarID,forceUpdate) {
     var elem = document.getElementById(id);
@@ -2111,6 +2150,7 @@ function setFreqSelect(index) {
         }
     }
     */
+    freqSetCommit = index;
 }
 
 function updateConfigSet(id) {
@@ -2236,6 +2276,59 @@ const fetchWithTimeout = (url, duration) => {
       
     })
   }
+
+// Detect when the user starts interacting with the slider
+document.addEventListener("pointerdown", (e) => {
+    // Only activate the flag if the event comes from the slider with id="sliderPower"
+    if (e.target.id === "sliderPower") {
+        isSliderPowerActive = true;
+    }
+});
+
+// Detect when the user stops interacting (anywhere on the page)
+document.addEventListener("pointerup", (e) => {
+    isSliderPowerActive = false;
+    if (e.target.id === "sliderPower") {
+        activateSliderPowerLock();
+    }
+});
+
+// Handle cases where the interaction is cancelled (touch cancel, drag abort, etc.)
+document.addEventListener("pointercancel", (e) => {
+    isSliderPowerActive = false;
+    if (e.target.id === "sliderPower") {
+        activateSliderPowerLock();
+    }
+});
+
+document.addEventListener("input", (e) => {
+    if (e.target.id === "sliderPower") {
+        // Extend lock while user is dragging
+        activateSliderPowerLock();
+
+        // Send value to device
+        //sendPowerValueToDevice(e.target.value);
+    }
+});
+
+
+function activateSliderPowerLock() {
+    // Mark slider as user-active
+    isSliderPowerActive = true;
+
+    // Clear previous timeout if still running
+    if (sliderPowerTimeout) {
+        clearTimeout(sliderPowerTimeout);
+    }
+
+    // Keep the lock active for 1 second after last user interaction
+    sliderPowerTimeout = setTimeout(() => {
+        isSliderPowerActive = false;
+        sliderPowerTimeout = null;
+    }, 2000); // delay in milliseconds
+}
+
+
 
 //*****************************************************************************************************************************
 // LANGUAGE SECTION

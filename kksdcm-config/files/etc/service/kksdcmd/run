@@ -65,7 +65,7 @@ exec ${EXECUTABLE} \
   --proxybaseip 192.168.1.2 \
   --proxyport 502 \
   --numproxies 15 \
-  --pollinterval 0 \
+  --pollinterval 3000 \
   -l ${LOGLEVEL} \
   ${EXTRAOPTS} \
   </dev/null
