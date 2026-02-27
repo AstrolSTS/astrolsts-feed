@@ -29,6 +29,8 @@ var setOPpointEnabled = 0;
 var isSliderPowerActive = false;
 var sliderPowerTimeout = null;
 var parameterMissmatch = true;
+var cmdStartGeneratorAll = false;
+var cmdStopGeneratorAll = false;
 
 var generatorEnabled  = [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];      // 0 = disable, 1 = enable
 var generatorSimulate = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = constant values
@@ -54,27 +56,36 @@ function updatePage(page, level) {
     levelLast = level;
     pageLast = page;
 
-    if(page == "monitor" && (level == "US-ENG" || level == "ENG")) {
-        update_modbus_register();
-        writeMonitorTable(level,"update");
-        writeMonitorExtended(level,"update");
-        writeLMparameter(level,"update");
-        writeCounterOverview(level,"update");
-        end_of_update();
+    if(cmdStartGeneratorAll || cmdStopGeneratorAll) {           // master commands for all generators
+        if(page == "monitor" && (level == "US-ENG" || level == "ENG" || level == "USER")) {
+            if(cmdStartGeneratorAll) {
+                start_generator_all();
+                cmdStartGeneratorAll = false;
+            }
+            if(cmdStopGeneratorAll) {
+                stop_generator_all();
+                cmdStopGeneratorAll = false;
+            }
+        }
     }
-    if(page == "monitor" && level == "USER") {
-        update_modbus_register();
-        writeMonitorTable(level,"update");
-        end_of_update();
+    else {
+        if(page == "monitor" && (level == "US-ENG" || level == "ENG")) {
+            update_modbus_register();
+            writeMonitorTable(level,"update");
+            writeMonitorExtended(level,"update");
+            writeLMparameter(level,"update");
+            writeCounterOverview(level,"update");
+            end_of_update();
+        }
+        if(page == "monitor" && level == "USER") {
+
+            update_modbus_register();
+            writeMonitorTable(level,"update");
+            end_of_update();
+        }
     }
    
 }
-
-function recall_updatePage() {
-    //console.log("recall update page");
-    //updatePage(pageLast,levelLast);
-}
-
 
 function refreshRegisterList() {
     if(nb_commits <= 0) {
@@ -141,9 +152,7 @@ function fetch_generator(genIndex,mode) {
 
         }).fail(function(domain, code, message) {
             // API problem
-            console.log('API error: ' + domain + '] Error ' + code.toString() + ': ' + message);
-            //alert(lng.com_problem[LNG];
-            
+            console.log('API error: ' + domain + '] Error ' + code.toString() + ': ' + message);            
         });
     }
     
@@ -158,7 +167,6 @@ function update_modbus_register() {
     for(var i=0;i<MAX_GENERATORS;i++) {
         if(markingChanges[i] && generatorEnabled[i]) {
             save_generator();
-            //console.log("changes on: "+i);
             markingChanges[i] = setNone;
         } 
     }
@@ -320,15 +328,24 @@ function save_generator_all() {
 
 async function save_generator() {
     if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) {       
-        var control0 = getMBregister(activeIndex,"control0").value & (0x70);
-        if(startGeneratorEnabled) { control0 |= (1 << 0); }
-        
+        var control0 = getMBregister(activeIndex,"control0").value;
+        if(startGeneratorEnabled) { 
+            control0 |= (1 << 0); 
+        }
+        else {
+            control0 &= ~(1 << 0); 
+        }
 
         var actFreqSet = getFreqSelect();
-        control0 |= actFreqSet << 1;
-        if(startDecasEnabled) { control0 |= (1 << 7); }
+        control0 &= ~(0x0E);                // mask out freq
+        control0 |= actFreqSet << 1;        // update freg
+        if(startDecasEnabled) { 
+            control0 |= (1 << 7); 
+        }
+        else {
+            control0 &= ~(1 << 7); 
+        }
 
-        //write_register("control1",1);       // errReset
         if(markingChanges[activeIndex] == setControl) {
             commitGeneratorSettings = false;
         }
@@ -1265,8 +1282,7 @@ function extMonitorPower(init) {
 
         document.write("<tr><td><label>"+lng.set_power[LNG] +"</label></td><td></td><td></td></tr>");
         document.write("<tr><td><div class='slidecontainer'><input type='range' min='0' max='100' value='0' class='sliderPower' id='sliderPower' oninput='changeSliderPowerValue(this.id)'"+"></div></td><td><span id='idPGBarSetPower'></span></td></tr>");
-        //document.write("<tr><td><div class='progbarContainer'><div class='progbarValue' id='idPGBarValueSetPower'style='width:0%'</div></div></td><td><span id='idPGBarSetPower'></span></td></tr>");
-
+     
         document.write("<tr><td><label>"+lng.pulse_width_power_stage[LNG] +"</label></td><td></td><td></td></tr>");
         document.write("<tr><td><div class='progbarContainer'><div class='progbarValue' id='idPGBarValuePulseWidthPowerStage' style='width:0%'</div></div></td><td><span id='idPGBarPulseWidthPowerStage'></span></td></tr>");
 
@@ -1291,8 +1307,7 @@ function extMonitorPower(init) {
             setProgBarValue("idPGBarValueActPower",actPowerPercent);
             
             addHTML("idPGBarSetPower", getMBregister(activeIndex,"targetPower").formatted.trim());
-            //setProgBarValue("idPGBarValueSetPower",getMBregister(activeIndex,"targetPower").value);
-            
+
             var pulseWithPercent = calcPulseWidthPercent(activeIndex);
             addHTML("idPGBarPulseWidthPowerStage", pulseWithPercent + " %");
             setProgBarValue("idPGBarValuePulseWidthPowerStage",pulseWithPercent);
@@ -1300,21 +1315,15 @@ function extMonitorPower(init) {
             addHTML("idPGBarActPowerPercent", getMBregister(activeIndex,"actualPower").formatted.trim());
             setProgBarValue("idPGBarValueActPowerPercent",getMBregister(activeIndex,"actualPower").value);
 
-            //if(indexChanged) {
-                
-                
-                var elem = document.getElementById("sliderPower");
-                if(elem) {
-                    elem.disabled = false;
-                    updateSliderPowerFromCode(getMBregister(activeIndex,"targetPower").value);
-                    //elem.value = getMBregister(activeIndex,"targetPower").value;      
-                    //changeSliderPowerValue("sliderPower","",false);    
-                }
-            //}
+            var elem = document.getElementById("sliderPower");
+            if(elem) {
+                elem.disabled = false;
+                updateSliderPowerFromCode(getMBregister(activeIndex,"targetPower").value);
+            }
+
         }
         else {
             addHTML("idPGBarActPower", "-"); setProgBarValue("idPGBarValueActPower",0);
-            //setProgBarValue("idPGBarValueSetPower",0);
             addHTML("idPGBarPulseWidthPowerStage", "-"); setProgBarValue("idPGBarValuePulseWidthPowerStage",0);
             addHTML("idPGBarActPowerPercent", "-"); setProgBarValue("idPGBarValueActPowerPercent",0);
             
@@ -1322,14 +1331,11 @@ function extMonitorPower(init) {
             var elem = document.getElementById("sliderPower");
             if(elem) {
                 elem.value = 0;      
-                //changeSliderPowerValue("sliderPower","",false);   
-                //updateSliderPowerFromCode(0); 
                 elem.disabled = true;
                 elem.style.setProperty("--val", "0%");
             }
 
         }
-
     }
 }
 
@@ -1423,7 +1429,7 @@ function extMonitorStatusConfig(init,level) {
         document.write("<div class='extMonitorContent'>");
         document.write("<h4 class='contentHeader'><span>"+lng.status[LNG] +" / "+lng.config[LNG] +"</span></h4>");
         document.write("<table id='extMonStatusConfigTable' style='width:100%'><colgroup><col style='width:70%'><col style='width:30%'></colgroup><tbody>");
-        document.write("<tr><td>"+lng.us_power[LNG] +"</td><td><input id='btStartGenerator' type='button' class='btnStandard' onclick='start_generator()' value='"+lng.on[LNG]+"'></input></td><td><input id='btStopGenerator' type='button' class='btnStandard' onclick='stop_generator()' value='"+lng.off[LNG]+"'></input></td></tr>");
+        document.write("<tr><td>"+lng.us_power[LNG] +"</td><td><input id='btStartGenerator' type='button' class='btnStandard' onclick='start_generator(this.id)' value='"+lng.on[LNG]+"'></input></td><td><input id='btStopGenerator' type='button' class='btnStandard' onclick='stop_generator(this.id)' value='"+lng.off[LNG]+"'></input></td></tr>");
         document.write("<tr><td>"+lng.frequency[LNG] +"</td>");
         document.write("<td colspan=2><input id='btFrq0' type='button' class='btBit' value='1' onclick="+"changeBitState(this.id)"+"></input>");
         document.write("<input id='btFrq1' type='button' class='btBit' value='2' onclick="+"changeBitState(this.id)"+"></input>");
@@ -1443,8 +1449,9 @@ function extMonitorStatusConfig(init,level) {
         document.write("<tr><td colspan=2>"+lng.op_state[LNG] +"</td><td><span id='idOPstate'>-</span></td></tr>");
         document.write("<tr><td colspan=2>"+lng.settling_status[LNG] +"</td><td><span id='idSettling'>-</span></td></tr>");
 
+        document.write("<tr><td colspan=3>&nbsp;</td></tr>");
 
-        document.write("<tr><td>"+lng.us_power[LNG] +"</td><td><input id='btStartGenerator' type='button' class='btnStandard' onclick='start_generator_all()' value='"+lng.on_all[LNG]+"'></input></td><td><input id='btStopGenerator' type='button' class='btnStandard' onclick='stop_generator_all()' value='"+lng.off_all[LNG]+"'></input></td></tr>");
+        document.write("<tr><td>"+lng.us_power[LNG] +"</td><td><input id='btStartGeneratorAll' type='button' class='btnStandard' onclick='start_generator(this.id)' value='"+lng.on_all[LNG]+"'></input></td><td><input id='btStopGeneratorAll' type='button' class='btnStandard' onclick='stop_generator(this.id)' value='"+lng.off_all[LNG]+"'></input></td></tr>");
         
         document.write("</tbody></table>")
         document.write("<div style='width:350px;height:0px'></div>");
@@ -1500,14 +1507,14 @@ function extMonitorStatusConfig(init,level) {
             document.getElementById("btStopGenerator").disabled = false;
             document.getElementById("btStatusConfig_DegasON").disabled = false;
             document.getElementById("btStatusConfig_DegasOFF").disabled = false;
+            document.getElementById("btStartGeneratorAll").disabled = false;
+            document.getElementById("btStopGeneratorAll").disabled = false;
 
             if(indexChanged) {
                 var freq = (status0 >> 1) & 0x07;
                 setFreqSelect(freq);
             }
-
             updateFreqSelection();
-
         }
         else {
             addHTML("idDegasCycleTime", "-");
@@ -1521,11 +1528,12 @@ function extMonitorStatusConfig(init,level) {
             addHTML("idOPstate", "-");  
             addHTML("idSettling", "-");  
             
-            
             document.getElementById("btStartGenerator").disabled = true;
             document.getElementById("btStopGenerator").disabled = true;
             document.getElementById("btStatusConfig_DegasON").disabled = true;
-            document.getElementById("btStatusConfig_DegasOFF").disabled = true;        
+            document.getElementById("btStatusConfig_DegasOFF").disabled = true;   
+            document.getElementById("btStartGeneratorAll").disabled = true;
+            document.getElementById("btStopGeneratorAll").disabled = true;     
 
             for(var i=0;i<4;i++) {
                 document.getElementById("btFrq"+i).disabled = true; 
@@ -1542,7 +1550,6 @@ function updateFreqSelection() {
             document.getElementById("btFrq"+i).disabled = false;
         }
         else {
-            setBitState("btFrq"+i, 0);
             document.getElementById("btFrq"+i).disabled = true;
         }
     }
@@ -1561,7 +1568,7 @@ function extMonitorGeneratorInfo(init) {
     if(init == "init") {
         document.write("<div class='extMonitorContent'>");
         document.write("<h4 class='contentHeader'><span>"+lng.generator_info[LNG] +"</span></h4>");
-        document.write("<table id='extMonGenInfoTable' style='width:100%'><colgroup><col style='width:25%'><col style='width:75%'></colgroup><tbody>");
+        document.write("<table id='extMonGenInfoTable' style='width:100%'><colgroup><col style='width:60%'><col style='width:40%'></colgroup><tbody>");
 
         document.write("<tr><td>SN Core</td><td><span id='serialNumberCore'></span></td></tr>");
         document.write("<tr><td>Config</td><td><span id='configVers'></span></td></tr>");
@@ -1745,15 +1752,6 @@ function extMonitorTemperatures(init) {
     }
 }
 
-function extMonitorConfiguration() {
-    /*
-    document.write("<div class='extMonitorContent'>");
-    document.write("<h4 class='contentHeader'><span>Configuration</span></h4>");
-    document.write("<div style='width:400px;height:200px'></div>");
-    document.write("</div>");
-    */
-}
-
 function changeSliderPowerValue(id) {
     const slider = document.getElementById(id);
     if(slider) {
@@ -1812,36 +1810,14 @@ function changeSliderValue(id,tarID,forceUpdate) {
 
 function changeBitState(id) {
     var element = document.getElementById(id);
-    if(element) {
-        /*
-        for(var i = 0;i<4;i++) {
-            var idx = "btFrq"+i;
-            //if(isBitState(idx) && id != idx){
-             //   setBitState(idx,0);
-            //}
-        }
-        */
-        
+    if(element) {        
         for(var i = 0;i<4;i++) {
             var idx = "btFrq"+i;
             if(id == idx) {
                 freqSetCommit = i+1;
-               // setBitState(idx,0);
                 break;
             }
         }
-        /*
-        //if(element.classList.contains("btBitON")) {
-        //    element.className = "btBitOFF";
-        //}
-        //else 
-        //if(element.classList.contains("btBitOFF")) {
-        //    element.className = "btBitON";
-        //}
-
-        element.disabled = true;
-        */
-
         if(isBackendConnected(activeIndex)) {
             // marking selected generator value has changed if connected only
             if(id == "btFrq0" || id == "btFrq1" || id == "btFrq2" || id == "btFrq3") {
@@ -1849,28 +1825,6 @@ function changeBitState(id) {
             }
         }
     }
-}
-
-function updateFreqSetBitsFromStatus() {
-    /*
-    var actFreq = (getMBregister(activeIndex,"status0").value >> 1) & 0x03;
-
-    for(var i=0;i<4;i++) {
-        var element = document.getElementById("btFrq"+i);
-        
-        if((i+1) == actFreq) {
-            if(element.disabled == false) {
-               element.className = "btBitON"; 
-            }
-            else {
-                element.className = "btBitOFF"; 
-            }
-        }
-        else {
-            element.className = "btBitOFF";
-        }
-    }
-    */
 }
 
 function changeCheckboxState(id) {
@@ -1885,39 +1839,29 @@ function changeCheckboxState(id) {
 }
 
 
-function changeButtonState(id,strON,strOFF) {
-    var element = document.getElementById(id);
-    if(element) {
-        if(element.value === strON) {
-            element.value = strOFF;
-            element.className = "btOFF";
-        }
-        else if(element.value === strOFF) {
-            element.value = strON;
-            element.className = "btON";
-        }
-        element.disabled = true;        // disable button until status is read back
+function start_generator(id) {
+    if(id == "btStartGeneratorAll") {
+        cmdStartGeneratorAll = true;
+    }
+    else {
         if(isBackendConnected(activeIndex)) {
-            // marking selected generator value has changed if connected only
-            //if(id == "btStatusConfig_Degas") {
-            //    markingChanges[activeIndex] = setControl;
-            //}
+            startGeneratorEnabled = 1;
+            markingChanges[activeIndex] = setControl;
         }
     }
+
 }
 
-function start_generator() {
-    if(isBackendConnected(activeIndex)) {
-        startGeneratorEnabled = 1;
-        markingChanges[activeIndex] = setControl;
+function stop_generator(id) {
+    if(id == "btStopGeneratorAll") {
+        cmdStopGeneratorAll = true;
     }
-}
-
-function stop_generator() {
-    if(isBackendConnected(activeIndex)) {
-        reset_generator();
-        startGeneratorEnabled = 0;
-        markingChanges[activeIndex] = setControl;
+    else {
+        if(isBackendConnected(activeIndex)) {
+            reset_generator();
+            startGeneratorEnabled = 0;
+            markingChanges[activeIndex] = setControl;
+        }
     }
 }
 
@@ -1933,15 +1877,15 @@ async function start_generator_all() {
     for(activeIndex=0;activeIndex<MAX_GENERATORS;activeIndex++) {
         if(isBackendConnected(activeIndex)) {
             if(generatorComOK[activeIndex]) {
-                var control0 = getMBregister(activeIndex,"control0").value & (0x70);
+                var control0 = getMBregister(activeIndex,"control0").value;
                 control0 |= (1 << 0);       // enable generator
                 await write_register("control0",control0); 
                 await write_register("control1",1);           // reset error
                 await commit_register("control0", "", 2, true);
-                console.log("Start generator "+activeIndex);
             }
         }
     }
+    nb_commits = 0;                         // reset commit counter
     activeIndex = backup_activeIndex;       // restore active index
 }
 
@@ -1950,78 +1894,18 @@ async function stop_generator_all() {
     for(activeIndex=0;activeIndex<MAX_GENERATORS;activeIndex++) {
         if(isBackendConnected(activeIndex)) {
             if(generatorComOK[activeIndex]) {
-                var control0 = getMBregister(activeIndex,"control0").value & (0x70);
+                var control0 = getMBregister(activeIndex,"control0").value;
                 control0 &= ~(1 << 0);       // disable generator
                 await write_register("control0",control0); 
                 await write_register("control1",1);           // reset error
                 await commit_register("control0", "", 2, true);
-                console.log("Stop generator "+activeIndex);
             }
         }
     }
+    nb_commits = 0;                         // reset commit counter
     activeIndex = backup_activeIndex;       // restore active index
 }
 
-
-function setButtonState(id,value,strON,strOFF) {
-    var element = document.getElementById(id);
-    if(element) {
-        if(element.value === strON && value) {
-            return 0;       // already correct set
-        }
-        else if(element.value === strOFF && !value) {
-            return 0;       // already correct cleared
-        }
-        else {
-            if(value) {
-                element.value = strON;
-                element.className = "btON";
-            }
-            else {
-                element.value = strOFF;
-                element.className = "btOFF";
-            }
-            return 1;       // changed
-        }
-    }
-}
-
-function setButtonText(id,str) {
-    var element = document.getElementById(id);
-    if(element) {
-        if(element.value === str) {
-            return 0;       // already correct set
-        }
-        else {
-            element.value = str;
-            return 1;
-        }
-    }
-    return 0;
-}
-
-function setBitState(id,value) {
-    /*
-    var element = document.getElementById(id);
-    if(element) {
-        if(element.classList.contains("btBitON") && value) {    
-            return 0;       // already correct set
-        }
-        else if(element.classList.contains("btBitOFF") && !value) {
-            return 0;       // already correct cleared
-        }
-        else {
-            if(value) {
-                element.className = "btBitON";
-            }
-            else {
-                element.className = "btBitOFF";
-            }
-            return 1;       // changed
-        }
-    }
-    */
-}
 
 function writeCounterOverview(level,init) {
     level = check_access(level);
@@ -2179,42 +2063,16 @@ function writeInfo(init) {
             addHTML("coreBLMCUVers", getVersionString(genIndex,"blVersMcu","blVersPatchMcu"));
             addHTML("coreBLFPGAVers", getVersionString(genIndex,"blVersFpga","blVersPatchFpga"));
             addHTML("testval", testValue);
-
-            
-            //document.getElementById(id).innerHTML = getMBregister(genIndex,"temperaturQ1").formatted.trim();
- 
         }
     }
 
 }
 
 function getFreqSelect() {
-    /*
-    var ret = 1;
-    for(var i=0;i<4;i++) {
-        if(isBitState("btFrq"+i)) {
-            ret = i+1;
-            break;
-        }
-    }
-    return ret;
-    */
-   //console.log("freqSetCommit = "+freqSetCommit);
     return freqSetCommit;
 }
 
 function setFreqSelect(index) {
-    /*
-    for(var i=0;i<4;i++) {
-        var idx = "btFrq"+i;
-        if(i == index - 1) {
-           setBitState(idx,1); 
-        }
-        else {
-            setBitState(idx,0); 
-        }
-    }
-    */
     freqSetCommit = index;
 }
 
@@ -2228,13 +2086,11 @@ function updateConfigSet(id) {
     if(number_of_checkboxes == 0) {
         document.getElementById(id).checked = true;
     }
-    writeLMparameter(userLevel,"parDisable");
-    //writeLMparameter(userLevel,"update");
-    
+    writeLMparameter(userLevel,"parDisable");    
 }
 
 function isBackendConnected(genIndex) {
-    if(generatorEnabled[genIndex]) {        // modbus registers
+    if(generatorEnabled[genIndex] && generatorComOK[genIndex]) {        // modbus registers
         if(mb_response[genIndex].length > 0) {
             return 1;
         }
@@ -2293,28 +2149,6 @@ function setProgBarValue(id,value) {
     }
 }
 
-function isButtonState(id,text) {
-    var elem = document.getElementById(id);
-    if(elem) {
-        if(elem.value === text) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-function isBitState(id) {
-    /*
-    var elem = document.getElementById(id);
-    if(elem) {
-        if(elem.classList.contains("btBitON")) {
-            return 1;
-        }
-    }
-    */
-    return 0;
-}
-
 const fetchWithTimeout = (url, duration) => {
     return new Promise((resolve, reject) => {
       const controller = new AbortController();
@@ -2335,7 +2169,6 @@ const fetchWithTimeout = (url, duration) => {
       });
       
       timerid = setTimeout(() => {
-        //console.log("Aborted");
         controller.abort();
       }, duration);
       
@@ -2370,9 +2203,6 @@ document.addEventListener("input", (e) => {
     if (e.target.id === "sliderPower") {
         // Extend lock while user is dragging
         activateSliderPowerLock();
-
-        // Send value to device
-        //sendPowerValueToDevice(e.target.value);
     }
 });
 
