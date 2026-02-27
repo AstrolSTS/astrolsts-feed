@@ -28,6 +28,7 @@ var startDecasEnabled = 0;
 var setOPpointEnabled = 0;
 var isSliderPowerActive = false;
 var sliderPowerTimeout = null;
+var parameterMissmatch = true;
 
 var generatorEnabled  = [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];      // 0 = disable, 1 = enable
 var generatorSimulate = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = constant values
@@ -297,14 +298,15 @@ function check_generator_com(genIndex) {
 
 function read_generator() {
     refreshAll = true;
+    parameterMissmatch = false;
 }
 
-function reset_generator() {
+async function reset_generator() {
     if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) {  
         var control0 = getMBregister(activeIndex,"control0").value;
         control0 &= ~(0x01);                    // stop generator
-        write_register("control0",control0); 
-        write_register("control1",1);           // errReset
+        await write_register("control0",control0); 
+        await write_register("control1",1);           // errReset
         commitGenerator = true;
         markingChanges[activeIndex] = setControl;
     }
@@ -313,9 +315,10 @@ function reset_generator() {
 function save_generator_all() {
     commitGeneratorSettings = true;
     save_generator();
+    parameterMissmatch = false;
 }
 
-function save_generator() {
+async function save_generator() {
     if(isBackendConnected(activeIndex) && generatorSimulate[activeIndex] != 1) {       
         var control0 = getMBregister(activeIndex,"control0").value & (0x70);
         if(startGeneratorEnabled) { control0 |= (1 << 0); }
@@ -335,9 +338,9 @@ function save_generator() {
 
         if(commitGeneratorSettings) {
             if(userLevel == "US-ENG") {
-                write_register("degasCycleTime",document.getElementById("par_DegasCycleTime").value);
-                write_register("degasTime",document.getElementById("par_DegasTime").value);
-                write_register("degasCycleCount",document.getElementById("par_DegasCycleCount").value);       
+                await write_register("degasCycleTime",document.getElementById("par_DegasCycleTime").value);
+                await write_register("degasTime",document.getElementById("par_DegasTime").value);
+                await write_register("degasCycleCount",document.getElementById("par_DegasCycleCount").value);       
             }
 
             var actConfigSet = 0;
@@ -355,41 +358,41 @@ function save_generator() {
                     configSet &= ~(1 << activeConfigBIT);           // activation bit only
                 }
                 if(document.getElementById("idCBsetActive"+i).checked) { configSet |= (1 << activeConfigBIT);}
-                write_register("configSet"+(i+1),configSet);
+                await write_register("configSet"+(i+1),configSet);
                 if(i == (actFreqSet - 1)) {
                     actConfigSet = configSet;
                 }
 
-                write_register("powerRangeSet"+(i+1),document.getElementById("powerRangeSet"+(i)).value);  
-                write_register("powerSet"+(i+1),document.getElementById("powerSet"+(i)).value);  
-                write_register("frqMinSet"+(i+1),document.getElementById("frqMinSet"+(i)).value);  
-                write_register("frqMaxSet"+(i+1),document.getElementById("frqMaxSet"+(i)).value);  
+                await write_register("powerRangeSet"+(i+1),document.getElementById("powerRangeSet"+(i)).value);  
+                await write_register("powerSet"+(i+1),document.getElementById("powerSet"+(i)).value);  
+                await write_register("frqMinSet"+(i+1),document.getElementById("frqMinSet"+(i)).value);  
+                await write_register("frqMaxSet"+(i+1),document.getElementById("frqMaxSet"+(i)).value);  
                 if(userLevel == "US-ENG") {
-                    write_register("phaseSet"+(i+1),document.getElementById("phaseSet"+(i)).value);  
-                    write_register("frqSweepShapeSet"+(i+1),document.getElementById("frqSweepShapeSet"+(i)).value);  
-                    write_register("frqSweepModFrqSet"+(i+1),document.getElementById("frqSweepModFrqSet"+(i)).value);  
-                    write_register("frqSweepRangeSet"+(i+1),document.getElementById("frqSweepRangeSet"+(i)).value);  
+                    await write_register("phaseSet"+(i+1),document.getElementById("phaseSet"+(i)).value);  
+                    await write_register("frqSweepShapeSet"+(i+1),document.getElementById("frqSweepShapeSet"+(i)).value);  
+                    await write_register("frqSweepModFrqSet"+(i+1),document.getElementById("frqSweepModFrqSet"+(i)).value);  
+                    await write_register("frqSweepRangeSet"+(i+1),document.getElementById("frqSweepRangeSet"+(i)).value);  
                 }
             }
             control0 &= ~(0x60);        // mask out sweepAmpl and sweepFrq
             actConfigSet &= (0x60);     // fill in actual bits
-            write_register("control0",control0 | actConfigSet) ;
-            write_register("targetPower",document.getElementById("powerSet"+(actFreqSet-1)).value);  
-            write_register("powerRange",document.getElementById("powerRangeSet"+(actFreqSet-1)).value);  
+            await write_register("control0",control0 | actConfigSet) ;
+            await write_register("targetPower",document.getElementById("powerSet"+(actFreqSet-1)).value);  
+            await write_register("powerRange",document.getElementById("powerRangeSet"+(actFreqSet-1)).value);  
             
         }  
         else {
-            write_register("control0",control0); 
-            write_register("targetPower",getMBregister(activeIndex,"powerSet"+actFreqSet).value);  
-            write_register("powerRange",document.getElementById("powerRangeSet"+(actFreqSet-1)).value);  
+            await write_register("control0",control0); 
+            await write_register("targetPower",getMBregister(activeIndex,"powerSet"+actFreqSet).value);  
+            await write_register("powerRange",document.getElementById("powerRangeSet"+(actFreqSet-1)).value);  
         }  
         save_fw_options(true);
         commitGenerator = true;
     }
 }
 
-function write_register(id,value) {
-    commit_register(id,value,1,false);
+async function write_register(id,value) {
+    await commit_register(id,value,1,false);
 }
 
 function commit_call(call) {
@@ -491,7 +494,7 @@ async function save_fw_options(permanent) {
     });
 }
 
-function resetCounterValue(id) {
+async function resetCounterValue(id) {
     if(isBackendConnected(activeIndex)) {
         var index = getFreqSelect();
         var regName = [];
@@ -532,7 +535,7 @@ function resetCounterValue(id) {
         var cntIndex = 0;
         for(var i=0;i<regName.length;i++) {
             if(regName[i] != "") {
-                write_register(regName[i],0);  // clear directly during commit
+                await write_register(regName[i],0);  // clear directly during commit
                 genCounters[cntIndex++] = regName[i]; 
                 commitGenerator = true;
                 commitGeneratorCounters = true;
@@ -701,10 +704,12 @@ function check_access(level) {
 }
 
 function writeMonitorTable(level,init) {
-    var tableHeader = ["#", lng.us_short[LNG], lng.power[LNG], lng.set_power_short[LNG], lng.degas[LNG], lng.frequency[LNG], lng.phase[LNG], lng.pulse_width_power_stage[LNG], lng.temperatures[LNG] + " [Q1..Q4]", lng.status[LNG]];
-    var tableIds = ["monIndex", "monUS", "monActPower", "monSetPower", "monDegas", "monFreq", "monPhase", "monPulseWidthPowerStage", "monTemperatures", "monStatus"];
+    var tableHeader = ["#", lng.us_short[LNG], lng.power[LNG], lng.set_power_short[LNG], lng.degas[LNG], lng.frequency[LNG], lng.phase[LNG], lng.pulse_width_power_stage[LNG], lng.temperatures[LNG] + " [Q1..Q4]", lng.fan[LNG], lng.status[LNG]];
+    var tableIds = ["monIndex", "monUS", "monActPower", "monSetPower", "monDegas", "monFreq", "monPhase", "monPulseWidthPowerStage", "monTemperatures", "monFan", "monStatus"];
     var maxRow = MAX_GENERATORS + 1;
     var maxCol = tableIds.length;
+    var status0 = 0;
+    var status1 = 0;
 
     level = check_access(level);
 
@@ -748,6 +753,9 @@ function writeMonitorTable(level,init) {
                 id = tableIds[0]+index; 
                 addHTML(id,"CM "+(index+1).toString());
                 status0 = getMBregister(index,"status0").value;
+                status1 = getMBregister(index,"status1").value;
+                
+
                 id = tableIds[1] + index;
                 if(status0 & (1 << 0)) {        // usPower
                     addHTML(id,lng.on[LNG]);
@@ -783,12 +791,22 @@ function writeMonitorTable(level,init) {
                 var t4 = getMBregister(index,"temperaturQ4").formatted.trim();
                 addHTML(tableIds[8] + index,t1 + " | " + t2 + " | " + t3 + " | " + t4);
 
+                id = tableIds[9] + index;
+                if(status1 & (1 << 6)) {        // fan
+                    addHTML(id,lng.on[LNG]);
+                    document.getElementById(id).className = "statusON";
+                }
+                else {
+                    addHTML(id,lng.off[LNG]);
+                    document.getElementById(id).className = "statusOFF";
+                }
+
                 var warningNumber = getMBregister(index,"warning").value;
                 var errorNumber = getMBregister(index,"error").value;
                 var warningText = getWarningText(warningNumber);
                 var errorText = getErrorText(errorNumber);
 
-                id = tableIds[9] + index;
+                id = tableIds[10] + index;
                 if(errorNumber) {
                     addHTML(id,lng.error[LNG] + " " + errorNumber + ": " + errorText);
                     document.getElementById(id).className = "statusERROR";
@@ -927,7 +945,7 @@ function writeLMparameter(level,init) {
         }
         else {
             if(isBackendConnected(activeIndex)) {
-
+                
                 if(indexChanged) {
                     for(var i=0;i<4;i++) {
                         document.getElementById("idCBsetActive"+i).disabled = false;
@@ -939,6 +957,7 @@ function writeLMparameter(level,init) {
                 
                 if(refreshAlldone || parameterInit == false) {
                     parameterInit = true;
+                    parameterMissmatch = false;
                     var nbCheckbox = 0;
                     parameterCheckboxLast = 0;
                     for(var i=0;i<4;i++) {
@@ -1003,6 +1022,7 @@ function writeLMparameter(level,init) {
 
                     }
                 }
+                updateParameterTitle();
                 if(level == "US-ENG") {
                     document.getElementById("par_DegasCycleTime").disabled = false;
                     document.getElementById("par_DegasTime").disabled = false;
@@ -1152,6 +1172,7 @@ function updateExtMonitorInfo(index) {
         }
     }
     else {
+        updateParameterTitle();
         document.getElementById('paramActiveName').innerHTML = lng.parameter[LNG] + " CM"+(index+1).toString();
         document.getElementById('extMonitorActiveName').innerHTML = lng.settings[LNG] + " CM"+(index+1).toString();
         document.getElementById('idCounterOverviewName').innerHTML = lng.counter[LNG] + " CM"+(index+1).toString() + " - " + getFreqSelect().toString();
@@ -1159,13 +1180,18 @@ function updateExtMonitorInfo(index) {
         eExtMoni.style.display = "block";
         eCntOver.style.display = "block";
     }
+
+    
+
     if(index != activeIndex) {
         indexChanged = true;
+        parameterMissmatch = true;
     }
     activeIndex = index;
+    
 
     for(var i=0;i<16;i++) {
-        var symbol = document.getElementById('idMonTable').rows[i+1].cells.item(10);
+        var symbol = document.getElementById('idMonTable').rows[i+1].cells.item(11);
         if(i==index && eLMparam.style.display == "block") {
             symbol.innerHTML = symbol_min;
         }
@@ -1175,6 +1201,17 @@ function updateExtMonitorInfo(index) {
     }
 
 
+}
+
+function updateParameterTitle() {
+    var strMissmatch = "";
+    if(parameterMissmatch) {
+        strMissmatch = "*";
+    }
+    var parameterTitle = lng.parameter[LNG] + " CM"+(activeIndex+1).toString() + strMissmatch;
+    if(document.getElementById('paramActiveName').innerHTML != parameterTitle) {
+        document.getElementById('paramActiveName').innerHTML = parameterTitle;
+    }
 }
 
 function writeMonitorExtended(level,init) {
@@ -1406,6 +1443,9 @@ function extMonitorStatusConfig(init,level) {
         document.write("<tr><td colspan=2>"+lng.op_state[LNG] +"</td><td><span id='idOPstate'>-</span></td></tr>");
         document.write("<tr><td colspan=2>"+lng.settling_status[LNG] +"</td><td><span id='idSettling'>-</span></td></tr>");
 
+
+        document.write("<tr><td>"+lng.us_power[LNG] +"</td><td><input id='btStartGenerator' type='button' class='btnStandard' onclick='start_generator_all()' value='"+lng.on_all[LNG]+"'></input></td><td><input id='btStopGenerator' type='button' class='btnStandard' onclick='stop_generator_all()' value='"+lng.off_all[LNG]+"'></input></td></tr>");
+        
         document.write("</tbody></table>")
         document.write("<div style='width:350px;height:0px'></div>");
         document.write("</div>");
@@ -1429,7 +1469,7 @@ function extMonitorStatusConfig(init,level) {
             }
             else {
                 elem = document.getElementById("btStartGenerator"); if(elem) { elem.className = "btnStandard btnOFF";}
-                elem = document.getElementById("btStopGenerator"); if(elem) { elem.className = "btnStandard btnON";}
+                elem = document.getElementById("btStopGenerator"); if(elem) { elem.className = "btnStandard btnOFF";}
             }
 
             if(status0 & (1 << 7)) {        // degas
@@ -1438,7 +1478,7 @@ function extMonitorStatusConfig(init,level) {
             }
             else {
                 elem = document.getElementById("btStatusConfig_DegasON"); if(elem) { elem.className = "btnStandard btnOFF";}
-                elem = document.getElementById("btStatusConfig_DegasOFF"); if(elem) { elem.className = "btnStandard btnON";}
+                elem = document.getElementById("btStatusConfig_DegasOFF"); if(elem) { elem.className = "btnStandard btnOFF";}
             }
 
             addHTML("idDegasCycleTime",getMBregister(activeIndex,"degasCycleTime").value);
@@ -1746,13 +1786,13 @@ function updateSliderPowerFromCode(value) {
     }
 }
 
-function userSetNewSliderPower() {
+async function userSetNewSliderPower() {
     const slider = document.getElementById("sliderPower");
     if(slider) {
         if(slider.value < 10) {
             slider.value = 10;
         }
-        write_register("targetPower",slider.value);  
+        await write_register("targetPower",slider.value);  
     }
 }
 
@@ -1888,14 +1928,39 @@ function setDegas(state) {
     }
 }
 
-/*
-function setOPpoint(state) {
-    if(isBackendConnected(activeIndex)) {
-        startOPpointEnabled = parseInt(state);
-        markingChanges[activeIndex] = setControl;
+async function start_generator_all() {
+    var backup_activeIndex = activeIndex;
+    for(activeIndex=0;activeIndex<MAX_GENERATORS;activeIndex++) {
+        if(isBackendConnected(activeIndex)) {
+            if(generatorComOK[activeIndex]) {
+                var control0 = getMBregister(activeIndex,"control0").value & (0x70);
+                control0 |= (1 << 0);       // enable generator
+                await write_register("control0",control0); 
+                await write_register("control1",1);           // reset error
+                await commit_register("control0", "", 2, true);
+                console.log("Start generator "+activeIndex);
+            }
+        }
     }
+    activeIndex = backup_activeIndex;       // restore active index
 }
-*/
+
+async function stop_generator_all() {
+    var backup_activeIndex = activeIndex;
+    for(activeIndex=0;activeIndex<MAX_GENERATORS;activeIndex++) {
+        if(isBackendConnected(activeIndex)) {
+            if(generatorComOK[activeIndex]) {
+                var control0 = getMBregister(activeIndex,"control0").value & (0x70);
+                control0 &= ~(1 << 0);       // disable generator
+                await write_register("control0",control0); 
+                await write_register("control1",1);           // reset error
+                await commit_register("control0", "", 2, true);
+                console.log("Stop generator "+activeIndex);
+            }
+        }
+    }
+    activeIndex = backup_activeIndex;       // restore active index
+}
 
 
 function setButtonState(id,value,strON,strOFF) {
@@ -2389,6 +2454,8 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   disabled:                     ["disabled",                        "deaktiviert"],
   on:                           ["ON",                              "AN"],
   off:                          ["OFF",                             "AUS"],
+  on_all:                       ["ALL ON",                          "ALLE AN"],
+  off_all:                      ["ALL OFF",                         "ALLE AUS"],
   yes:                          ["Yes",                             "Ja"], 
   no:                           ["No",                              "Nein"], 
   generator_info:               ["Generator Info",                  "Generator Info"], 

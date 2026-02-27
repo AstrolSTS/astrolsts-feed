@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
 # name
 PKG_NAME:=kksdcmd
 # version of what we are downloading
-PKG_VERSION:=1.4.10
+PKG_VERSION:=1.4.13
 # version of this makefile
 PKG_RELEASE:=19
 
