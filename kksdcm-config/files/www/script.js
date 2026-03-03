@@ -28,9 +28,10 @@ var startDecasEnabled = 0;
 var setOPpointEnabled = 0;
 var isSliderPowerActive = false;
 var sliderPowerTimeout = null;
-var parameterMissmatch = true;
 var cmdStartGeneratorAll = false;
 var cmdStopGeneratorAll = false;
+var cmdSaveGeneratorAll = false;
+var selectGeneratorToSave = 0;
 
 var generatorEnabled  = [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];      // 0 = disable, 1 = enable
 var generatorSimulate = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];      // 0 = kksdcmd api, 1 = constant values
@@ -56,7 +57,7 @@ function updatePage(page, level) {
     levelLast = level;
     pageLast = page;
 
-    if(cmdStartGeneratorAll || cmdStopGeneratorAll) {           // master commands for all generators
+    if(cmdStartGeneratorAll || cmdStopGeneratorAll || cmdSaveGeneratorAll) {           // master commands for all generators
         if(page == "monitor" && (level == "US-ENG" || level == "ENG" || level == "USER")) {
             if(cmdStartGeneratorAll) {
                 start_generator_all();
@@ -65,6 +66,10 @@ function updatePage(page, level) {
             if(cmdStopGeneratorAll) {
                 stop_generator_all();
                 cmdStopGeneratorAll = false;
+            }
+            if(cmdSaveGeneratorAll) {
+                save_generator_all();
+                cmdSaveGeneratorAll = false;
             }
         }
     }
@@ -306,7 +311,6 @@ function check_generator_com(genIndex) {
 
 function read_generator() {
     refreshAll = true;
-    parameterMissmatch = false;
 }
 
 async function reset_generator() {
@@ -320,10 +324,76 @@ async function reset_generator() {
     }
 }
 
-function save_generator_all() {
-    commitGeneratorSettings = true;
-    save_generator();
-    parameterMissmatch = false;
+function openGeneratorDialog() {
+    const input = prompt( lng.select_generators[LNG], String(activeIndex + 1) );
+
+    if (!input) return;
+
+    selectGeneratorToSave = parseGeneratorSelection(input);
+
+    if (selectGeneratorToSave.length === 0) {
+        alert(lng.no_valid_generator[LNG]);
+        return;
+    }
+    cmdSaveGeneratorAll = true;
+}
+
+function parseGeneratorSelection(text) {
+    // Reject any characters other than digits, comma, dash, and whitespace
+    if (!/^[0-9,\-\s]+$/.test(text)) {
+        return [];
+    }
+
+    const parts = text.split(",").map(p => p.trim());
+    const result = new Set();
+
+    for (const part of parts) {
+
+        // Handle ranges like "3-7"
+        if (part.includes("-")) {
+            const [startStr, endStr] = part.split("-");
+
+            // Validate both sides are integers
+            const start = Number(startStr);
+            const end = Number(endStr);
+
+            if (!Number.isInteger(start) || !Number.isInteger(end)) continue;
+            if (start < 1 || end > MAX_GENERATORS || start > end) continue;
+
+            for (let i = start; i <= end; i++) {
+                result.add(i);
+            }
+            continue;
+        }
+
+        // Handle single numbers
+        const num = Number(part);
+        if (Number.isInteger(num) && num >= 1 && num <= 16) {
+            result.add(num);
+        }
+    }
+
+    // Return sorted array of unique generator IDs
+    return Array.from(result).sort((a, b) => a - b);
+}
+
+
+async function save_generator_all() {
+    if (selectGeneratorToSave.length) {
+        var backup_activeIndex = activeIndex;
+        for(var i=0;i<selectGeneratorToSave.length;i++) {
+            activeIndex = selectGeneratorToSave[i] - 1;
+            if(isBackendConnected(activeIndex)) {
+                if(generatorComOK[activeIndex]) {
+                    commitGeneratorSettings = true;
+                    await save_generator();
+                    await commitGeneratorAsync();
+                }
+            }
+        }
+        nb_commits = 0;                         // reset commit counter
+        activeIndex = backup_activeIndex;       // restore active index
+    }
 }
 
 async function save_generator() {
@@ -944,7 +1014,7 @@ function writeLMparameter(level,init) {
                 document.write("<tr><td colspan='3'>"+lng.voltage_meas_range[LNG] +"</td>");
                 document.write("<td><select id='iduRangeSet' class=paramSelect><option value=0>33V</option><option value=1>95V</option><option value=2>390V</option><option value=3>450V</option></select></td><td></td></tr>");
                 document.write("<tr><td colspan='3'>"+lng.current_meas_range[LNG] +"</td>");
-                document.write("<td><select id='idiRangeSet' class=paramSelect><option value=0>8A</option><<option value=2>30A</option></select></td><td></td></tr>");
+                document.write("<td><select id='idiRangeSet' class=paramSelect><option value=0>low</option><<option value=1>high</option></select></td><td></td></tr>");
            
                 document.write("<tr><td colspan='3'>"+lng.save_operation_point[LNG] +"</td>");
                 document.write("<td><input type='checkbox' id='idfwOptionOPpoint' class='LMparamCheckbox' onclick=changeCheckboxState(this.id)></input></td><td></td></tr>");
@@ -953,7 +1023,7 @@ function writeLMparameter(level,init) {
                 document.write("<td><select id='idComSelect' class=paramSelect><option value=0>AUTO</option><option value=1>DCM</option><option value=2>RMT</option><option value=3>ON_OFF</option></select></tr>");
             }   
             
-            document.write("<tr><td colspan=4></td><td><input id='btReadGenerator' type='button' class='btnStandard' onclick='read_generator()' value='"+lng.read[LNG]+"'></input></td><td style='text-align:right'><input id='btSaveGenerator' type='button' class='btnStandard' onclick='save_generator_all()' value='"+lng.save[LNG]+"'></input></td></tr>");
+            document.write("<tr><td colspan=4></td><td><input id='btReadGenerator' type='button' class='btnStandard' onclick='read_generator()' value='"+lng.read[LNG]+"'></input></td><td style='text-align:right'><input id='btSaveGenerator' type='button' class='btnStandard' onclick='openGeneratorDialog()' value='"+lng.save[LNG]+"'></input></td></tr>");
             document.write("</tbody></table>");
             document.write("</div>");
             document.getElementById("idLMparameter").style.display = "none"; 
@@ -972,9 +1042,8 @@ function writeLMparameter(level,init) {
                     }
                 }
                 
-                if(refreshAlldone || parameterInit == false) {
+                if(refreshAlldone || parameterInit == false || (indexChanged)) {
                     parameterInit = true;
-                    parameterMissmatch = false;
                     var nbCheckbox = 0;
                     parameterCheckboxLast = 0;
                     for(var i=0;i<4;i++) {
@@ -1189,7 +1258,7 @@ function updateExtMonitorInfo(index) {
         }
     }
     else {
-        updateParameterTitle();
+        document.getElementById('paramActiveName').innerHTML = lng.parameter[LNG] + " CM"+(activeIndex+1).toString();
         document.getElementById('paramActiveName').innerHTML = lng.parameter[LNG] + " CM"+(index+1).toString();
         document.getElementById('extMonitorActiveName').innerHTML = lng.settings[LNG] + " CM"+(index+1).toString();
         document.getElementById('idCounterOverviewName').innerHTML = lng.counter[LNG] + " CM"+(index+1).toString() + " - " + getFreqSelect().toString();
@@ -1202,7 +1271,6 @@ function updateExtMonitorInfo(index) {
 
     if(index != activeIndex) {
         indexChanged = true;
-        parameterMissmatch = true;
     }
     activeIndex = index;
     
@@ -1217,18 +1285,10 @@ function updateExtMonitorInfo(index) {
         }
     }
 
-
 }
 
 function updateParameterTitle() {
-    var strMissmatch = "";
-    if(parameterMissmatch) {
-        strMissmatch = "*";
-    }
-    var parameterTitle = lng.parameter[LNG] + " CM"+(activeIndex+1).toString() + strMissmatch;
-    if(document.getElementById('paramActiveName').innerHTML != parameterTitle) {
-        document.getElementById('paramActiveName').innerHTML = parameterTitle;
-    }
+    document.getElementById('paramActiveName').innerHTML = lng.parameter[LNG] + " CM"+(activeIndex+1).toString();
 }
 
 function writeMonitorExtended(level,init) {
@@ -1448,7 +1508,8 @@ function extMonitorStatusConfig(init,level) {
         document.write("<tr><td colspan=2>"+lng.freq_regulation[LNG] +"</td><td><span id='idFreqRegulation'>-</span></td></tr>");
         document.write("<tr><td colspan=2>"+lng.op_state[LNG] +"</td><td><span id='idOPstate'>-</span></td></tr>");
         document.write("<tr><td colspan=2>"+lng.settling_status[LNG] +"</td><td><span id='idSettling'>-</span></td></tr>");
-
+        document.write("<tr><td colspan=2>"+lng.reset_status[LNG] +"</td><td><input id='btResetStatus' type='button' class='btnStandard' onclick='reset_generator()' value='"+lng.reset[LNG]+"'></input></td></tr>");
+        
         document.write("<tr><td colspan=3>&nbsp;</td></tr>");
 
         document.write("<tr><td>"+lng.us_power[LNG] +"</td><td><input id='btStartGeneratorAll' type='button' class='btnStandard' onclick='start_generator(this.id)' value='"+lng.on_all[LNG]+"'></input></td><td><input id='btStopGeneratorAll' type='button' class='btnStandard' onclick='stop_generator(this.id)' value='"+lng.off_all[LNG]+"'></input></td></tr>");
@@ -1858,7 +1919,7 @@ function stop_generator(id) {
     }
     else {
         if(isBackendConnected(activeIndex)) {
-            reset_generator();
+            //reset_generator();
             startGeneratorEnabled = 0;
             markingChanges[activeIndex] = setControl;
         }
@@ -2271,6 +2332,7 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   status:                       ["Status",                          "Status"],
   config:                       ["Config",                          "Konfiguration"],
   us_power:                     ["Generator activation",            "Generatoraktivierung"],
+  reset_status:                 ["Status reset",                    "Status l%F6schen"],
   freq_sweep:                   ["Freq Sweep",                      "Freq Sweep"],
   ampl_sweep:                   ["Ampl Sweep",                      "Ampl Sweep"],
   degas:                        ["Degas",                           "Degas"],
@@ -2356,6 +2418,8 @@ var lng = {   					/* ENGLISH                          | DEUTSCH             */
   interface:                    ["COM Interface",                   "Komm. Schnittstelle"],
   param_auto_refresh:           ["Parameter auto refresh",          "Autom. Param-Aktual."],
   apparent_current:             ["Apparent current",                "Scheinstrom"],
+  select_generators:            ["Enter generators (e.g., 3, 1-4, 2,5,7):",  "Generatoren eingeben (z.B. 3, 1-4, 2,5,7):"],
+  no_valid_generator:           ["No valid generators (1–16).",     "Keine gültigen Generatoren (1–16)."],
   
   //----Error text, keep order
   error_0:                      ["no error",                        "kein Fehler"],
