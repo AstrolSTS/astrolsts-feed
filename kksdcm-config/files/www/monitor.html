@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<link rel="stylesheet" type="text/css" href="/style.css">
+		<script>document.write("<link rel='stylesheet' type='text/css' href='/style.css?v=" + Date.now() + "'>");</script>
+		<script>document.write("<script type='text/javascript' src='/script.js?v=" + Date.now() + "'><\/script>");</script>
 		<link rel="stylesheet" href="/css/all.min.css">
-		<script type="text/javascript" charset="UTF-8" src="/script.js"></script>
 		<script type="text/javascript" src="/html2pdf.bundle.min.js"></script>
 		<script src="/js/jquery.min.js"></script>
 		<script src="/js/utils.js"></script>
@@ -11,7 +11,7 @@
 		<script type="text/javascript">
 			function onLoad() {
 				updatePage("monitor", "USER");
-				setTimeout('onLoad();', 500);
+				setTimeout(onLoad, 500);
 			}
 		</script>
 	</head>

@@ -10,6 +10,7 @@ var commitGeneratorSettings = false;
 var commitGeneratorCounters = false;
 var genCounters = [];
 var activeConfigBIT = 15;
+var activeConfigRelayMask = 0x0700;
 var WEB_OFFLINE = 0;
 var MAX_GENERATORS = 16;
 var generatorComOK    = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -25,7 +26,6 @@ var nb_commits        = 0;
 var freqSetCommit = 1;
 var startGeneratorEnabled = 0;
 var startDecasEnabled = 0;
-var setOPpointEnabled = 0;
 var isSliderPowerActive = false;
 var sliderPowerTimeout = null;
 var cmdStartGeneratorAll = false;
@@ -51,7 +51,7 @@ var levelLast = "";
 var pageLast = "";
 
 
-function updatePage(page, level) {
+async function updatePage(page, level) {
 
     level = check_access(level);
     levelLast = level;
@@ -75,7 +75,7 @@ function updatePage(page, level) {
     }
     else {
         if(page == "monitor" && (level == "US-ENG" || level == "ENG")) {
-            update_modbus_register();
+            await update_modbus_register();
             writeMonitorTable(level,"update");
             writeMonitorExtended(level,"update");
             writeLMparameter(level,"update");
@@ -164,10 +164,10 @@ function fetch_generator(genIndex,mode) {
 }
 
 
-function update_modbus_register() {
+async function update_modbus_register() {
     testValue++;
     localStorage.setItem('testValue', testValue);
-    refreshRegisterList();
+    await refreshRegisterList();
 
     for(var i=0;i<MAX_GENERATORS;i++) {
         if(markingChanges[i] && generatorEnabled[i]) {
@@ -434,7 +434,7 @@ async function save_generator() {
             for(var i=0;i<4;i++) {
                 var configSet = getMBregister(activeIndex,"configSet"+(i+1)).value;
                 if(userLevel == "US-ENG") {
-                    configSet &= (0x01);                            // all bits except usPower
+                    configSet &= (0x01 | activeConfigRelayMask);                            // clear all bits except usPower and relay mask
                     if(document.getElementById("configSet"+i.toString()+"1").checked) { configSet |= (1 << 1);}
                     if(document.getElementById("configSet"+i.toString()+"2").checked) { configSet |= (1 << 2);}
                     if(document.getElementById("configSet"+i.toString()+"3").checked) { configSet |= (1 << 3);}
@@ -442,9 +442,10 @@ async function save_generator() {
                     if(document.getElementById("configSet"+i.toString()+"6").checked) { configSet |= (1 << 6);}
                 }
                 else {
-                    configSet &= ~(1 << activeConfigBIT);           // activation bit only
+                    configSet &= ~(1 << activeConfigBIT);           // clear activation bit only
                 }
                 if(document.getElementById("idCBsetActive"+i).checked) { configSet |= (1 << activeConfigBIT);}
+
                 await write_register("configSet"+(i+1),configSet);
                 if(i == (actFreqSet - 1)) {
                     actConfigSet = configSet;
@@ -561,7 +562,7 @@ async function save_fw_options(permanent) {
             fwOptions &= ~(0xFF);       // mask out bits before set
             fwOptions |= document.getElementById("iduRangeSet").value & 0x03;
             fwOptions |= (document.getElementById("idiRangeSet").value & 0x03) << 2;
-            if(setOPpointEnabled) { fwOptions |= (1 << 5);}
+            if(isCheckboxState("idfwOptionOPpoint")) { fwOptions |= (1 << 5);}
             if(permanent) { fwOptions |= (1 << 4); }                // save persistent          
             fwOptions |= (document.getElementById("idComSelect").value & 0x03) << 6;
         }
@@ -793,6 +794,9 @@ function check_access(level) {
 function writeMonitorTable(level,init) {
     var tableHeader = ["#", lng.us_short[LNG], lng.power[LNG], lng.set_power_short[LNG], lng.degas[LNG], lng.frequency[LNG], lng.phase[LNG], lng.pulse_width_power_stage[LNG], lng.temperatures[LNG] + " [Q1..Q4]", lng.fan[LNG], lng.status[LNG]];
     var tableIds = ["monIndex", "monUS", "monActPower", "monSetPower", "monDegas", "monFreq", "monPhase", "monPulseWidthPowerStage", "monTemperatures", "monFan", "monStatus"];
+    var monColWidth = ["50px" , "50px",  "100px",        "100px",        "50px",     "100px",    "50px",     "80px",                   "230px",          "40px",   null];
+    var monColEngWidth = "15px";
+    
     var maxRow = MAX_GENERATORS + 1;
     var maxCol = tableIds.length;
     var status0 = 0;
@@ -816,15 +820,26 @@ function writeMonitorTable(level,init) {
                         document.write("<td></td>");
                     }
                     else {
-                        document.write("<td class='monTableHeader'>"+tableHeader[col]+"</td>");
+                        var w = (col < monColWidth.length)
+                                ? (monColWidth[col] ? "style='width:"+monColWidth[col]+";'" : "")
+                                : "style='width:"+monColEngWidth+";'";
+
+                        document.write("<td class='monTableHeader' "+w+">"+tableHeader[col]+"</td>");
+
                     }
                 }
                 else {
                     if(col == (tableIds.length)) {
-                        document.write("<td class='engParam' onclick='updateExtMonitorInfo("+(row-1)+")'><i class='fa fa-plus-square' aria-hidden='true'></i></td>");
+                        var w = "style='width:"+monColEngWidth+";'";
+                        document.write("<td class='engParam' "+w+" onclick='updateExtMonitorInfo("+(row-1)+")'><i class='fa fa-plus-square' aria-hidden='true'></i></td>");
+
                     }
                     else {
-                        document.write("<td id='"+tableIds[col]+(row-1)+"'></td>");
+                        var w = (col < monColWidth.length)
+                                ? (monColWidth[col] ? "style='width:"+monColWidth[col]+";'" : "")
+                                : "style='width:"+monColEngWidth+";'";
+                        document.write("<td id='"+tableIds[col]+(row-1)+"' "+w+"></td>");
+
                     }
                 }
             }
@@ -867,9 +882,7 @@ function writeMonitorTable(level,init) {
                 }
                 var freq = (status0 >> 1) & 0x7;
                 addHTML(tableIds[5] + index,freq+" ["+getMBregister(index,"actualFrequency").formatted.trim()+"]");
-       
                 addHTML(tableIds[6] + index,getMBregister(index,"actualPhase").formatted.trim());
-
                 addHTML(tableIds[7] + index,calcPulseWidthPercent(index) + " %");
                 
                 var t1 = getMBregister(index,"temperaturQ1").formatted.trim();
@@ -1017,7 +1030,7 @@ function writeLMparameter(level,init) {
                 document.write("<td><select id='idiRangeSet' class=paramSelect><option value=0>low</option><<option value=1>high</option></select></td><td></td></tr>");
            
                 document.write("<tr><td colspan='3'>"+lng.save_operation_point[LNG] +"</td>");
-                document.write("<td><input type='checkbox' id='idfwOptionOPpoint' class='LMparamCheckbox' onclick=changeCheckboxState(this.id)></input></td><td></td></tr>");
+                document.write("<td><input type='checkbox' id='idfwOptionOPpoint' class='LMparamCheckbox'></input></td><td></td></tr>");
                 
                 document.write("<tr><td colspan=3>"+lng.interface[LNG] +"</td>");
                 document.write("<td><select id='idComSelect' class=paramSelect><option value=0>AUTO</option><option value=1>DCM</option><option value=2>RMT</option><option value=3>ON_OFF</option></select></tr>");
@@ -1636,7 +1649,7 @@ function extMonitorGeneratorInfo(init) {
         document.write("<tr><td>HW Core</td><td><span id='hwVers'></span></td></tr>");
         document.write("<tr><td>SW MCU</td><td><span id='coreMCUVers'></span></td></tr>");
         document.write("<tr><td>SW FPGA</td><td><span id='coreFPGAVers'></span></td></tr>");
-        document.write("<tr><td>SW DCM</td><td><span id='dcmVers'></span></td></tr>");
+        document.write("<tr><td id='idDCMversionType'>SW DCM</td><td><span id='dcmVers'></span></td></tr>");
         
         document.write("<tr><td><span id='idInfoErrorTitle'>"+lng.error[LNG] +"</td><td><span id='idInfoError'></span></td></tr>");
         document.write("<tr><td colspan='2'><span id='idInfoErrorText'></span></td></tr>"); 
@@ -1689,6 +1702,12 @@ function extMonitorGeneratorInfo(init) {
             addHTML("dcmVers", "-");
             addHTML("idInfoError", "-");
             addHTML("idInfoErrorText", "-");
+        }
+        if(activeIndex == 0) {
+            addHTML("idDCMversionType", "SW DCM KKS"); 
+        }
+        else {
+            addHTML("idDCMversionType", "SW DCM ESP32"); 
         }
     }
 }
@@ -1888,17 +1907,15 @@ function changeBitState(id) {
     }
 }
 
-function changeCheckboxState(id) {
-    if(id == "idfwOptionOPpoint") {
-        if(document.getElementById("idfwOptionOPpoint").checked) {
-            setOPpointEnabled = 1;
-        }
-        else {
-            setOPpointEnabled = 0;
-        } 
-    }
-}
 
+function isCheckboxState(id) {
+    if(document.getElementById(id)) {
+        if(document.getElementById(id).checked) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 function start_generator(id) {
     if(id == "btStartGeneratorAll") {
