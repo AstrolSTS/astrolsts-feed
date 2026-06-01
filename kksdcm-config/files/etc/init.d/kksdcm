@@ -164,6 +164,14 @@ boot() {
     rm /etc/config/network_kks
     reboot
   fi
+
+   # update to default wireless settings if file exists
+  if [ -e /etc/config/wireless_kks ]
+  then
+    cp -f /etc/config/wireless_kks /etc/config/wireless
+    rm /etc/config/wireless_kks
+    reboot
+  fi
   
   # start eth led control script
   /usr/bin/eth_led_control &
