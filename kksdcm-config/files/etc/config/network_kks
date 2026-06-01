@@ -17,7 +17,7 @@ config interface 'wlanap'
 	option proto 'static'
 	option ipaddr '192.168.44.1'
 	option netmask '255.255.255.0'
-	option enabled '1'
+	option enabled '0'
 
 config interface 'lan'
 	option device 'eth0.1'
@@ -28,6 +28,8 @@ config interface 'lan'
 config interface 'pn_lan'
 	option device 'eth0.0'
 	option proto 'dhcp'
+	option reqaddress 'try'
+    option retrans '2'
   
 config switch
 	option name 'switch0'
